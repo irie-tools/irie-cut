@@ -1,0 +1,218 @@
+import { Bold, Italic, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
+import { useEditorStore } from '#/stores/editor-store'
+import type { Clip, TextProperties } from '#/types/editor'
+import { Label } from '#/components/ui/label'
+import { Input } from '#/components/ui/input'
+import { Textarea } from '#/components/ui/textarea'
+import { Slider } from '#/components/ui/slider'
+import { ScrollArea } from '#/components/ui/scroll-area'
+import { cn } from '#/lib/utils'
+
+export function PropertiesPanel() {
+  const selectedClipId = useEditorStore((s) => s.selectedClipId)
+  const project = useEditorStore((s) => s.project)
+  const clip = project?.tracks.flatMap((t) => t.clips).find((c) => c.id === selectedClipId)
+
+  return (
+    <div className="flex h-full flex-col border-l border-border bg-card/30">
+      <div className="border-b border-border px-3 py-2.5 text-sm font-medium">
+        {clip ? 'Clip properties' : 'Project'}
+      </div>
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="space-y-5 p-3">
+          {clip ? <ClipProps clip={clip} /> : <ProjectProps />}
+        </div>
+      </ScrollArea>
+    </div>
+  )
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  )
+}
+
+function ClipProps({ clip }: { clip: Clip }) {
+  const updateClip = useEditorStore((s) => s.updateClip)
+
+  return (
+    <>
+      <Row label="Start (s)">
+        <Input
+          type="number"
+          step={0.1}
+          min={0}
+          value={round(clip.start)}
+          onChange={(e) => updateClip(clip.id, { start: Math.max(0, Number(e.target.value) || 0) })}
+        />
+      </Row>
+      <Row label="Duration (s)">
+        <Input
+          type="number"
+          step={0.1}
+          min={0.1}
+          value={round(clip.duration)}
+          onChange={(e) =>
+            updateClip(clip.id, { duration: Math.max(0.1, Number(e.target.value) || 0.1) })
+          }
+        />
+      </Row>
+
+      {(clip.type === 'video' || clip.type === 'audio') && (
+        <Row label={`Volume · ${Math.round(clip.volume * 100)}%`}>
+          <Slider
+            value={[clip.volume]}
+            min={0}
+            max={1}
+            step={0.01}
+            onValueChange={(v) => updateClip(clip.id, { volume: sv(v) })}
+          />
+        </Row>
+      )}
+
+      {clip.type === 'text' && clip.text && (
+        <TextProps clip={clip} text={clip.text} />
+      )}
+    </>
+  )
+}
+
+function TextProps({ clip, text }: { clip: Clip; text: TextProperties }) {
+  const updateClip = useEditorStore((s) => s.updateClip)
+  const set = (patch: Partial<TextProperties>) =>
+    updateClip(clip.id, { text: { ...text, ...patch } })
+
+  return (
+    <>
+      <Row label="Text">
+        <Textarea
+          value={text.content}
+          rows={2}
+          onChange={(e) => set({ content: e.target.value })}
+        />
+      </Row>
+      <Row label={`Font size · ${text.fontSize}px`}>
+        <Slider
+          value={[text.fontSize]}
+          min={12}
+          max={240}
+          step={1}
+          onValueChange={(v) => set({ fontSize: sv(v) })}
+        />
+      </Row>
+      <div className="flex gap-3">
+        <Row label="Color">
+          <input
+            type="color"
+            value={text.color}
+            onChange={(e) => set({ color: e.target.value })}
+            className="h-9 w-full cursor-pointer rounded-md border border-border bg-background"
+          />
+        </Row>
+        <Row label="Background">
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={text.background ?? '#000000'}
+              onChange={(e) => set({ background: e.target.value })}
+              className="h-9 w-full cursor-pointer rounded-md border border-border bg-background"
+            />
+            <button
+              onClick={() => set({ background: text.background ? undefined : '#000000' })}
+              className="shrink-0 rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground"
+            >
+              {text.background ? 'On' : 'Off'}
+            </button>
+          </div>
+        </Row>
+      </div>
+      <Row label="Style">
+        <div className="flex gap-1">
+          <Toggle active={text.bold} onClick={() => set({ bold: !text.bold })}>
+            <Bold className="size-4" />
+          </Toggle>
+          <Toggle active={text.italic} onClick={() => set({ italic: !text.italic })}>
+            <Italic className="size-4" />
+          </Toggle>
+          <div className="mx-1 w-px bg-border" />
+          <Toggle active={text.align === 'left'} onClick={() => set({ align: 'left' })}>
+            <AlignLeft className="size-4" />
+          </Toggle>
+          <Toggle active={text.align === 'center'} onClick={() => set({ align: 'center' })}>
+            <AlignCenter className="size-4" />
+          </Toggle>
+          <Toggle active={text.align === 'right'} onClick={() => set({ align: 'right' })}>
+            <AlignRight className="size-4" />
+          </Toggle>
+        </div>
+      </Row>
+      <Row label={`Horizontal · ${Math.round(text.x * 100)}%`}>
+        <Slider value={[text.x]} min={0} max={1} step={0.01} onValueChange={(v) => set({ x: sv(v) })} />
+      </Row>
+      <Row label={`Vertical · ${Math.round(text.y * 100)}%`}>
+        <Slider value={[text.y]} min={0} max={1} step={0.01} onValueChange={(v) => set({ y: sv(v) })} />
+      </Row>
+    </>
+  )
+}
+
+function ProjectProps() {
+  const project = useEditorStore((s) => s.project)
+  const updateProject = useEditorStore((s) => s.updateProject)
+  if (!project) return null
+  return (
+    <>
+      <Row label="Resolution">
+        <div className="text-sm text-muted-foreground">
+          {project.width} × {project.height} · {project.fps}fps
+        </div>
+      </Row>
+      <Row label="Background">
+        <input
+          type="color"
+          value={project.background}
+          onChange={(e) => updateProject({ background: e.target.value })}
+          className="h-9 w-full cursor-pointer rounded-md border border-border bg-background"
+        />
+      </Row>
+      <p className="pt-2 text-xs text-muted-foreground">
+        Select a clip on the timeline to edit its properties.
+      </p>
+    </>
+  )
+}
+
+function Toggle({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'rounded-md border border-border p-1.5 transition-colors',
+        active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+function round(n: number): number {
+  return Math.round(n * 10) / 10
+}
+
+/** base-ui Slider passes a number or an array depending on its value shape. */
+function sv(v: number | readonly number[]): number {
+  return Array.isArray(v) ? v[0] : (v as number)
+}

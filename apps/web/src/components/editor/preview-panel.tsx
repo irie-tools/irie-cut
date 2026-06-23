@@ -1,0 +1,214 @@
+import { useEffect, useRef } from 'react'
+import { Play, Pause, SkipBack, SkipForward } from 'lucide-react'
+import { useEditorStore, projectDuration } from '#/stores/editor-store'
+import { drawFrame, clipActiveAt, type RenderSources } from '#/lib/renderer'
+import { formatTimecode } from '#/lib/media'
+import type { Project } from '#/types/editor'
+
+export function PreviewPanel() {
+  const project = useEditorStore((s) => s.project)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const videoEls = useRef(new Map<string, HTMLVideoElement>())
+  const audioEls = useRef(new Map<string, HTMLAudioElement>())
+  const imageEls = useRef(new Map<string, HTMLImageElement>())
+
+  // Continuous render + media-sync loop while the panel is mounted.
+  useEffect(() => {
+    let raf = 0
+    const sources: RenderSources = {
+      getVideo: (id) => videoEls.current.get(id),
+      getImage: (id) => imageEls.current.get(id),
+    }
+
+    const loop = () => {
+      const state = useEditorStore.getState()
+      const p = state.project
+      const canvas = canvasRef.current
+      if (p && canvas) {
+        if (canvas.width !== p.width || canvas.height !== p.height) {
+          canvas.width = p.width
+          canvas.height = p.height
+        }
+        syncMedia(p, state.currentTime, state.isPlaying, state.getMediaUrl, {
+          videoEls: videoEls.current,
+          audioEls: audioEls.current,
+          imageEls: imageEls.current,
+        })
+        const ctx = canvas.getContext('2d')
+        if (ctx) drawFrame(ctx, p, state.currentTime, sources)
+      }
+      raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+
+    const vids = videoEls.current
+    const auds = audioEls.current
+    const imgs = imageEls.current
+    return () => {
+      cancelAnimationFrame(raf)
+      vids.forEach((v) => v.pause())
+      auds.forEach((a) => a.pause())
+      vids.clear()
+      auds.clear()
+      imgs.clear()
+    }
+  }, [])
+
+  return (
+    <div className="flex h-full flex-col bg-card/10">
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
+        {project ? (
+          <canvas
+            ref={canvasRef}
+            style={{ aspectRatio: `${project.width} / ${project.height}` }}
+            className="max-h-full max-w-full rounded-md bg-black shadow-lg ring-1 ring-border"
+          />
+        ) : null}
+      </div>
+      <Transport />
+    </div>
+  )
+}
+
+function Transport() {
+  const isPlaying = useEditorStore((s) => s.isPlaying)
+  const togglePlay = useEditorStore((s) => s.togglePlay)
+  const currentTime = useEditorStore((s) => s.currentTime)
+  const setCurrentTime = useEditorStore((s) => s.setCurrentTime)
+  const project = useEditorStore((s) => s.project)
+  const setPlaying = useEditorStore((s) => s.setPlaying)
+  const total = projectDuration(project)
+
+  return (
+    <div className="flex shrink-0 items-center justify-center gap-3 border-t border-border px-4 py-2">
+      <button
+        onClick={() => {
+          setPlaying(false)
+          setCurrentTime(0)
+        }}
+        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        aria-label="Skip to start"
+      >
+        <SkipBack className="size-4" />
+      </button>
+      <button
+        onClick={togglePlay}
+        className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:opacity-90"
+        aria-label={isPlaying ? 'Pause' : 'Play'}
+      >
+        {isPlaying ? <Pause className="size-4" /> : <Play className="size-4 translate-x-px" />}
+      </button>
+      <button
+        onClick={() => {
+          setPlaying(false)
+          setCurrentTime(total)
+        }}
+        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        aria-label="Skip to end"
+      >
+        <SkipForward className="size-4" />
+      </button>
+      <div className="ml-2 font-mono text-xs tabular-nums text-muted-foreground">
+        {formatTimecode(currentTime)} / {formatTimecode(total)}
+      </div>
+    </div>
+  )
+}
+
+interface ElMaps {
+  videoEls: Map<string, HTMLVideoElement>
+  audioEls: Map<string, HTMLAudioElement>
+  imageEls: Map<string, HTMLImageElement>
+}
+
+/** Reconcile media elements with the project and sync playback to `time`. */
+function syncMedia(
+  project: Project,
+  time: number,
+  playing: boolean,
+  getUrl: (id: string) => string | undefined,
+  maps: ElMaps,
+) {
+  const neededVideo = new Set<string>()
+  const neededAudio = new Set<string>()
+  const neededImage = new Set<string>()
+
+  for (const track of project.tracks) {
+    for (const clip of track.clips) {
+      if (clip.type === 'image' && clip.mediaId) {
+        neededImage.add(clip.mediaId)
+        if (!maps.imageEls.has(clip.mediaId)) {
+          const url = getUrl(clip.mediaId)
+          if (url) {
+            const img = new Image()
+            img.src = url
+            maps.imageEls.set(clip.mediaId, img)
+          }
+        }
+        continue
+      }
+      if (clip.type !== 'video' && clip.type !== 'audio') continue
+      if (!clip.mediaId) continue
+      const map = clip.type === 'video' ? maps.videoEls : maps.audioEls
+      const needed = clip.type === 'video' ? neededVideo : neededAudio
+      needed.add(clip.id)
+
+      let el = map.get(clip.id) as HTMLVideoElement | HTMLAudioElement | undefined
+      if (!el) {
+        const url = getUrl(clip.mediaId)
+        if (!url) continue
+        el = clip.type === 'video' ? document.createElement('video') : document.createElement('audio')
+        el.src = url
+        el.preload = 'auto'
+        ;(el as HTMLVideoElement).playsInline = true
+        map.set(clip.id, el as never)
+      }
+
+      const active = clipActiveAt(clip, time)
+      const target = clip.trimStart + (time - clip.start)
+      el.muted = track.muted
+      el.volume = Math.max(0, Math.min(1, clip.volume))
+
+      if (active) {
+        if (playing) {
+          if (Math.abs(el.currentTime - target) > 0.25 && Number.isFinite(target)) {
+            try {
+              el.currentTime = target
+            } catch {
+              /* not seekable yet */
+            }
+          }
+          if (el.paused) void el.play().catch(() => {})
+        } else {
+          if (!el.paused) el.pause()
+          if (Math.abs(el.currentTime - target) > 0.05 && Number.isFinite(target)) {
+            try {
+              el.currentTime = target
+            } catch {
+              /* not seekable yet */
+            }
+          }
+        }
+      } else if (!el.paused) {
+        el.pause()
+      }
+    }
+  }
+
+  // Drop elements for clips/media that no longer exist.
+  prune(maps.videoEls, neededVideo)
+  prune(maps.audioEls, neededAudio)
+  prune(maps.imageEls, neededImage)
+}
+
+function prune<T extends HTMLMediaElement | HTMLImageElement>(
+  map: Map<string, T>,
+  needed: Set<string>,
+) {
+  for (const [key, el] of map) {
+    if (!needed.has(key)) {
+      if ('pause' in el) (el as HTMLMediaElement).pause()
+      map.delete(key)
+    }
+  }
+}

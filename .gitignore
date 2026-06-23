@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+docs/
+
+# moon runtime cache
+.moon/cache/
+
+# playwright artifacts
+.playwright-mcp/
