@@ -56,6 +56,8 @@ export interface Clip {
   trimEnd: number
   /** 0..1 audio gain for video/audio clips. */
   volume: number
+  /** Color-grade filter preset id for video/image clips (see lib/filters). */
+  filter?: string
   text?: TextProperties
 }
 

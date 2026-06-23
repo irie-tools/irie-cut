@@ -7,6 +7,7 @@ import { Textarea } from '#/components/ui/textarea'
 import { Slider } from '#/components/ui/slider'
 import { ScrollArea } from '#/components/ui/scroll-area'
 import { cn } from '#/lib/utils'
+import { FILTER_PRESETS } from '#/lib/filters'
 
 export function PropertiesPanel() {
   const selectedClipId = useEditorStore((s) => s.selectedClipId)
@@ -71,6 +72,33 @@ function ClipProps({ clip }: { clip: Clip }) {
             step={0.01}
             onValueChange={(v) => updateClip(clip.id, { volume: sv(v) })}
           />
+        </Row>
+      )}
+
+      {(clip.type === 'video' || clip.type === 'image') && (
+        <Row label="Filter">
+          <div className="grid grid-cols-4 gap-1.5">
+            {FILTER_PRESETS.map((f) => {
+              const active = (clip.filter ?? 'none') === f.id
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => updateClip(clip.id, { filter: f.id })}
+                  className={cn(
+                    'flex flex-col items-center gap-1 rounded-md border p-1 transition-colors',
+                    active ? 'border-primary' : 'border-transparent hover:border-border',
+                  )}
+                  title={f.label}
+                >
+                  <span
+                    className="h-8 w-full rounded"
+                    style={{ background: f.swatch }}
+                  />
+                  <span className="truncate text-[10px] text-muted-foreground">{f.label}</span>
+                </button>
+              )
+            })}
+          </div>
         </Row>
       )}
 

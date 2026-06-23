@@ -3,6 +3,7 @@
 // Coordinates are in project pixel space (canvas backing-store size).
 
 import type { Clip, Project } from '#/types/editor'
+import { filterCss } from '#/lib/filters'
 
 export interface RenderSources {
   getVideo: (clipId: string) => HTMLVideoElement | undefined
@@ -76,13 +77,17 @@ export function drawFrame(
         const el = sources.getVideo(clip.id)
         if (el && el.readyState >= 2 && el.videoWidth) {
           const box = containBox(el.videoWidth, el.videoHeight, W, H)
+          ctx.filter = filterCss(clip.filter) || 'none'
           ctx.drawImage(el, box.x, box.y, box.w, box.h)
+          ctx.filter = 'none'
         }
       } else if (clip.type === 'image' && clip.mediaId) {
         const el = sources.getImage(clip.mediaId)
         if (el && el.complete && el.naturalWidth) {
           const box = containBox(el.naturalWidth, el.naturalHeight, W, H)
+          ctx.filter = filterCss(clip.filter) || 'none'
           ctx.drawImage(el, box.x, box.y, box.w, box.h)
+          ctx.filter = 'none'
         }
       }
     }
