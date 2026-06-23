@@ -14,20 +14,25 @@ import { useEditorStore } from '#/stores/editor-store'
 import type { MediaAsset } from '#/types/editor'
 import { formatDuration } from '#/lib/media'
 import { cn } from '#/lib/utils'
+import { TEMPLATES } from '#/lib/templates'
 
 export function MediaPanel() {
   return (
     <div className="flex h-full flex-col border-r border-border bg-card/30">
       <Tabs defaultValue="media" className="flex h-full flex-col gap-0">
-        <TabsList className="m-2 grid grid-cols-2">
+        <TabsList className="m-2 grid grid-cols-3">
           <TabsTrigger value="media">Media</TabsTrigger>
           <TabsTrigger value="text">Text</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
         <TabsContent value="media" className="min-h-0 flex-1">
           <MediaTab />
         </TabsContent>
         <TabsContent value="text" className="min-h-0 flex-1">
           <TextTab />
+        </TabsContent>
+        <TabsContent value="templates" className="min-h-0 flex-1">
+          <TemplatesTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -161,6 +166,48 @@ function TextTab() {
           <p className="text-xs text-muted-foreground">Place a title at the playhead</p>
         </div>
       </button>
+    </div>
+  )
+}
+
+function TemplatesTab() {
+  const applyTemplate = useEditorStore((s) => s.applyTemplate)
+  return (
+    <ScrollArea className="h-full">
+      <div className="space-y-2 px-3 pb-2">
+        <p className="px-1 pt-1 text-xs text-muted-foreground">
+          Set the canvas format and drop in a starter layout.
+        </p>
+        {TEMPLATES.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => applyTemplate(t)}
+            className="flex w-full items-center gap-3 rounded-lg border border-border bg-background p-2.5 text-left transition-colors hover:border-primary/50 hover:bg-accent/40"
+          >
+            <AspectThumb ratio={t.ratio} />
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{t.label}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {t.ratio} · {t.description}
+              </p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </ScrollArea>
+  )
+}
+
+/** A little aspect-ratio swatch for the template card. */
+function AspectThumb({ ratio }: { ratio: string }) {
+  const [w, h] = ratio.split(':').map(Number)
+  const portrait = h > w
+  return (
+    <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent">
+      <div
+        className="rounded-sm border border-primary/60 bg-primary/20"
+        style={portrait ? { width: 18, height: 32 } : { width: 32, height: (32 * h) / w }}
+      />
     </div>
   )
 }

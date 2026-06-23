@@ -15,6 +15,7 @@ import type {
 import { DEFAULT_STILL_DURATION } from '#/types/editor'
 import * as storage from '#/lib/storage'
 import { detectMediaType, probeMedia } from '#/lib/media'
+import type { Template } from '#/lib/templates'
 
 export const PX_PER_SECOND_BASE = 50
 
@@ -70,6 +71,7 @@ interface EditorState {
   addTrack: (type: TrackType) => string
   addClipFromMedia: (mediaId: string, atTime?: number) => void
   addTextClip: () => void
+  applyTemplate: (template: Template) => void
   updateClip: (clipId: string, patch: Partial<Clip>) => void
   moveClip: (clipId: string, trackId: string, start: number) => void
   splitAtPlayhead: () => void
@@ -280,6 +282,41 @@ export const useEditorStore = create<EditorState>((set, get) => {
           ...project,
           tracks: project.tracks.map((t) =>
             t.id === trackId ? { ...t, clips: [...t.clips, clip] } : t,
+          ),
+        }
+      })
+    },
+
+    applyTemplate(template) {
+      mutate((p) => {
+        const { project, trackId } = trackForType(p, 'text')
+        const clips: Clip[] = template.texts.map((spec) => ({
+          id: uid(),
+          trackId,
+          type: 'text',
+          name: 'Text',
+          start: spec.start,
+          duration: spec.duration,
+          trimStart: 0,
+          trimEnd: spec.duration,
+          volume: 1,
+          text: {
+            ...DEFAULT_TEXT,
+            content: spec.content,
+            fontSize: Math.round(template.height * spec.fontSizeRatio),
+            x: spec.x,
+            y: spec.y,
+            align: spec.align,
+            bold: spec.bold,
+            background: spec.background,
+          },
+        }))
+        return {
+          ...project,
+          width: template.width,
+          height: template.height,
+          tracks: project.tracks.map((t) =>
+            t.id === trackId ? { ...t, clips: [...t.clips, ...clips] } : t,
           ),
         }
       })
