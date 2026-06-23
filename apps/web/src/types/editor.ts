@@ -58,6 +58,8 @@ export interface Clip {
   volume: number
   /** Color-grade filter preset id for video/image clips (see lib/filters). */
   filter?: string
+  /** Story beat role for producer handoff/EDL (see lib/beats). */
+  role?: string
   text?: TextProperties
 }
 

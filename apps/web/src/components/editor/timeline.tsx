@@ -17,6 +17,7 @@ import {
 } from '#/stores/editor-store'
 import type { Clip, Track } from '#/types/editor'
 import { cn } from '#/lib/utils'
+import { roleLabel } from '#/lib/beats'
 
 export function Timeline() {
   const project = useEditorStore((s) => s.project)
@@ -293,6 +294,11 @@ function ClipView({
         <span className="truncate text-[11px] font-medium">
           {clip.type === 'text' ? clip.text?.content || 'Text' : clip.name}
         </span>
+        {roleLabel(clip.role) && (
+          <span className="ml-auto shrink-0 rounded bg-black/30 px-1 text-[9px] font-semibold uppercase tracking-wide">
+            {roleLabel(clip.role)}
+          </span>
+        )}
       </div>
       {/* Trim handles */}
       <div

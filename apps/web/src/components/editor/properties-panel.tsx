@@ -8,6 +8,14 @@ import { Slider } from '#/components/ui/slider'
 import { ScrollArea } from '#/components/ui/scroll-area'
 import { cn } from '#/lib/utils'
 import { FILTER_PRESETS } from '#/lib/filters'
+import { BEAT_ROLES, roleLabel } from '#/lib/beats'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '#/components/ui/select'
 
 export function PropertiesPanel() {
   const selectedClipId = useEditorStore((s) => s.selectedClipId)
@@ -61,6 +69,23 @@ function ClipProps({ clip }: { clip: Clip }) {
             updateClip(clip.id, { duration: Math.max(0.1, Number(e.target.value) || 0.1) })
           }
         />
+      </Row>
+      <Row label="Story role">
+        <Select
+          value={clip.role ?? 'none'}
+          onValueChange={(v) => updateClip(clip.id, { role: v ?? 'none' })}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue>{(v: string | null) => roleLabel(v ?? undefined) ?? 'None'}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {BEAT_ROLES.map((r) => (
+              <SelectItem key={r.id} value={r.id}>
+                {r.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </Row>
 
       {(clip.type === 'video' || clip.type === 'audio') && (
