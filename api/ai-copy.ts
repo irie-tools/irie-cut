@@ -1,8 +1,9 @@
-// Serverless: marketing copy assist. Dependency-free — calls an OpenAI-compatible
-// chat endpoint (defaults to the Vercel AI Gateway). Configure with env vars:
-//   AI_GATEWAY_API_KEY (or AI_API_KEY / OPENAI_API_KEY)
-//   AI_BASE_URL    (default https://ai-gateway.vercel.sh/v1)
-//   AI_TEXT_MODEL  (default openai/gpt-4o-mini)
+// Serverless: marketing copy assist. Dependency-free. Tries the Vercel AI
+// Gateway (Claude) first, then falls back to OpenAI directly — so it works as
+// long as either AI_GATEWAY_API_KEY or OPENAI_API_KEY is set, and auto-upgrades
+// to Claude once the gateway has access (BYOK or paid credits).
+//   AI_GATEWAY_API_KEY / AI_BASE_URL / AI_TEXT_MODEL (default anthropic/claude-sonnet-4.6)
+//   OPENAI_API_KEY / AI_OPENAI_TEXT_MODEL (default gpt-4o-mini)
 
 const SYSTEM: Record<string, string> = {
   hook: 'You write scroll-stopping first-line hooks for short-form video. Return 5 distinct options, one per line, no numbering, under 12 words each.',
@@ -11,40 +12,64 @@ const SYSTEM: Record<string, string> = {
   script: 'You write tight short-form video scripts as beats. Return 6 beats (hook, problem, proof, product, benefit, CTA), one per line, no numbering.',
 }
 
+function chat(base: string, key: string, model: string, sys: string, prompt: string) {
+  return fetch(`${base}/chat/completions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      temperature: 0.9,
+      messages: [
+        { role: 'system', content: sys },
+        { role: 'user', content: prompt },
+      ],
+    }),
+  })
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
-  const key = process.env.AI_GATEWAY_API_KEY || process.env.AI_API_KEY || process.env.OPENAI_API_KEY
-  if (!key) {
-    return res.status(503).json({ error: 'AI is not configured. Add AI_GATEWAY_API_KEY in your Vercel project env.' })
-  }
-  const base = process.env.AI_BASE_URL || 'https://ai-gateway.vercel.sh/v1'
-  // Gateway model slugs use dots for versions, e.g. anthropic/claude-sonnet-4.6
-  const model = process.env.AI_TEXT_MODEL || 'anthropic/claude-sonnet-4.6'
   const { prompt, kind } = (req.body || {}) as { prompt?: string; kind?: string }
   if (!prompt) return res.status(400).json({ error: 'Missing prompt.' })
+  const sys = SYSTEM[kind ?? 'hook'] ?? SYSTEM.hook
 
-  try {
-    const r = await fetch(`${base}/chat/completions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        temperature: 0.9,
-        messages: [
-          { role: 'system', content: SYSTEM[kind ?? 'hook'] ?? SYSTEM.hook },
-          { role: 'user', content: prompt },
-        ],
-      }),
+  const attempts: { base: string; key: string; model: string }[] = []
+  const gwKey = process.env.AI_GATEWAY_API_KEY || process.env.AI_API_KEY
+  if (gwKey) {
+    attempts.push({
+      base: process.env.AI_BASE_URL || 'https://ai-gateway.vercel.sh/v1',
+      key: gwKey,
+      model: process.env.AI_TEXT_MODEL || 'anthropic/claude-sonnet-4.6',
     })
-    if (!r.ok) return res.status(502).json({ error: 'AI request failed', detail: await r.text() })
-    const data = await r.json()
-    const text: string = data?.choices?.[0]?.message?.content ?? ''
-    const variants = text
-      .split('\n')
-      .map((s) => s.replace(/^\s*[-*\d.)]+\s*/, '').trim())
-      .filter(Boolean)
-    return res.status(200).json({ variants })
-  } catch (e) {
-    return res.status(502).json({ error: 'AI request failed', detail: String(e) })
   }
+  if (process.env.OPENAI_API_KEY) {
+    attempts.push({
+      base: 'https://api.openai.com/v1',
+      key: process.env.OPENAI_API_KEY,
+      model: process.env.AI_OPENAI_TEXT_MODEL || 'gpt-4o-mini',
+    })
+  }
+  if (!attempts.length) {
+    return res.status(503).json({ error: 'AI is not configured. Add AI_GATEWAY_API_KEY or OPENAI_API_KEY in Vercel env.' })
+  }
+
+  let lastErr = ''
+  for (const a of attempts) {
+    try {
+      const r = await chat(a.base, a.key, a.model, sys, prompt)
+      if (r.ok) {
+        const data = await r.json()
+        const text: string = data?.choices?.[0]?.message?.content ?? ''
+        const variants = text
+          .split('\n')
+          .map((s) => s.replace(/^\s*[-*\d.)]+\s*/, '').trim())
+          .filter(Boolean)
+        return res.status(200).json({ variants, model: a.model })
+      }
+      lastErr = await r.text()
+    } catch (e) {
+      lastErr = String(e)
+    }
+  }
+  return res.status(502).json({ error: 'AI request failed', detail: lastErr })
 }
