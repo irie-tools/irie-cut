@@ -348,17 +348,25 @@ function drawVisualizer(ctx: CanvasRenderingContext2D, project: Project, time: n
   const maxHalf = H * 0.05
   const totalW = W * 0.82
   const x0 = (W - totalW) / 2
-  const slot = totalW / N
+  // Symmetric mirror: the bass (most movement) sits at both ends and meets a
+  // calmer treble in the centre — or flip to bass-in-centre via bassCenter.
+  const M = 72
+  const slot = totalW / M
   const barW = Math.max(2, slot * 0.55)
   const radius = barW / 2
+  const bassCenter = !!vis.bassCenter
 
   ctx.save()
   ctx.globalAlpha = 0.92
   ctx.fillStyle = color
-  for (let b = 0; b < N; b++) {
-    const mag = spec.data[base + b]
+  for (let j = 0; j < M; j++) {
+    // d: 0 at the centre, 1 at the edges.
+    const d = Math.abs((j + 0.5) / M - 0.5) * 2
+    const bandFrac = bassCenter ? d : 1 - d
+    const band = Math.min(N - 1, Math.max(0, Math.round(bandFrac * (N - 1))))
+    const mag = spec.data[base + band]
     const half = Math.max(barW * 0.6, mag * maxHalf)
-    const x = x0 + b * slot + (slot - barW) / 2
+    const x = x0 + j * slot + (slot - barW) / 2
     if (typeof ctx.roundRect === 'function') {
       ctx.beginPath()
       ctx.roundRect(x, cy - half, barW, half * 2, radius)

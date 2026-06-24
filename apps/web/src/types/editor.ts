@@ -186,6 +186,8 @@ export interface Project {
     bassColor?: string
     /** Flash bassColor on strong low-end hits. */
     bassReactive?: boolean
+    /** Mirror with the bass pumping from the centre instead of both ends. */
+    bassCenter?: boolean
     /** Vertical centre, 0..1 of the frame. Default 0.9 (near the bottom). */
     y?: number
   }

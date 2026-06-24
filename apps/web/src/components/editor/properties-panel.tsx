@@ -1170,6 +1170,26 @@ function ProjectProps() {
           </button>
           {vis?.enabled && (
             <>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  onClick={() => void setVisualizer({ bassCenter: false })}
+                  className={cn(
+                    'rounded-md border py-1.5 text-[11px] transition-colors',
+                    !vis?.bassCenter ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  Bass at ends
+                </button>
+                <button
+                  onClick={() => void setVisualizer({ bassCenter: true })}
+                  className={cn(
+                    'rounded-md border py-1.5 text-[11px] transition-colors',
+                    vis?.bassCenter ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  Bass in centre
+                </button>
+              </div>
               <button
                 onClick={() => void setVisualizer({ bassReactive: !vis?.bassReactive })}
                 className={cn(
