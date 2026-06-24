@@ -2,6 +2,14 @@
 
 _Spec date: 2026-06-24._
 
+> **Update (same day): the accent evolved from gold to Irie green.** This spec landed first as a
+> gold/Cormorant re-skin (the family standard). On review Corey wanted the front door *livelier and
+> more music*, so Irie Cut took its own sound-system voice: the **red / gold / green** energy palette
+> with a single **Irie-green `#25c281`** accent flowing through the whole app (landing, projects,
+> editor), **Bebas Neue** marquee display + **Space Grotesk** body, and an animated, video-ready hero.
+> The structure/positioning below still holds; the gold-accent + Cormorant token values are
+> superseded by the green + Bebas/Space-Grotesk values now in `styles.css`.
+
 ## Why
 
 Corey: Irie Cut should **"read as a product in my ecosystem"** — not a standalone open-source editor

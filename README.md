@@ -8,9 +8,12 @@ titles and captions, score the cut, and export an MP4 — no account, no waterma
 uploaded. Your media lives in the browser (IndexedDB) and every frame is rendered
 on-device.
 
-It wears the **Irie Ecosystem Design Standard** (warm near-black canvas, single gold
-accent, Cormorant Garamond + DM Sans) so it reads as one of Corey's products, not a forked
-tool — see `ECOSYSTEM-RESKIN-SPEC.md`.
+It belongs to the **Irie ecosystem** but carries its own music-forward voice: a warm
+near-black canvas, the Irie **red / gold / green** energy palette (a single **Irie-green
+`#25c281`** accent flowing through the app, off the old forked cyan), **Bebas Neue** marquee
+display + **Space Grotesk** body, and a landing hero that's *alive* — equalizer, sweeping
+playhead, beat-popping segments — ready to swap for a real screen-recording of the editor.
+See `ECOSYSTEM-RESKIN-SPEC.md`.
 
 Live: **https://irie-cut.vercel.app**
 
