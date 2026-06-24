@@ -124,20 +124,24 @@ function MediaCard({ asset }: { asset: MediaAsset }) {
           <Icon className="size-6 text-muted-foreground" />
         )}
         <button
-          onClick={() => void removeMedia(asset.id)}
-          className="absolute right-1 top-1 rounded-md bg-black/60 p-1 text-white/80 opacity-0 transition hover:text-white group-hover:opacity-100"
-          aria-label="Remove media"
-        >
-          <Trash2 className="size-3.5" />
-        </button>
-        <button
           onClick={() => addClipFromMedia(asset.id)}
-          className="absolute inset-0 flex items-center justify-center bg-primary/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100"
+          className="absolute inset-0 z-10 flex items-center justify-center bg-primary/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100"
           aria-label="Add to timeline"
         >
           <span className="flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground">
             <Plus className="size-3" /> Add
           </span>
+        </button>
+        {/* Delete sits above the Add overlay so it stays clickable. */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            void removeMedia(asset.id)
+          }}
+          className="absolute right-1 top-1 z-20 rounded-md bg-black/70 p-1 text-white/80 opacity-0 transition hover:bg-destructive hover:text-white group-hover:opacity-100"
+          aria-label="Remove media"
+        >
+          <Trash2 className="size-3.5" />
         </button>
       </div>
       <div className="flex items-center gap-1 px-2 py-1.5">
