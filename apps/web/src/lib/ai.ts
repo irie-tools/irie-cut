@@ -1,6 +1,8 @@
 // Client helpers for the AI serverless functions (/api/ai-*). These return
 // friendly errors when AI isn't configured (no key) so the UI can degrade.
 
+import { audioToWavChunks } from '#/lib/audio-prep'
+
 export interface Cue {
   start: number
   end: number
@@ -44,10 +46,19 @@ function blobToBase64(blob: Blob): Promise<string> {
 }
 
 export async function transcribe(blob: Blob): Promise<{ cues: Cue[]; words: Cue[] }> {
-  const audioBase64 = await blobToBase64(blob)
-  const out = await postJson<{ cues: Cue[]; words?: Cue[] }>('/api/ai-transcribe', {
-    audioBase64,
-    mimeType: blob.type,
-  })
-  return { cues: out.cues ?? [], words: out.words ?? [] }
+  // Shrink + chunk so each request fits Vercel's ~4.5MB body limit, then merge
+  // the per-chunk results back onto one timeline using each chunk's offset.
+  const chunks = await audioToWavChunks(blob)
+  const cues: Cue[] = []
+  const words: Cue[] = []
+  for (const { wav, offset } of chunks) {
+    const audioBase64 = await blobToBase64(wav)
+    const out = await postJson<{ cues?: Cue[]; words?: Cue[] }>('/api/ai-transcribe', {
+      audioBase64,
+      mimeType: 'audio/wav',
+    })
+    for (const c of out.cues ?? []) cues.push({ ...c, start: c.start + offset, end: c.end + offset })
+    for (const w of out.words ?? []) words.push({ ...w, start: w.start + offset, end: w.end + offset })
+  }
+  return { cues, words }
 }
