@@ -118,7 +118,7 @@ function Hero() {
             </p>
           </div>
 
-          <AnimatedBeatCut />
+          <EditorReel />
         </div>
       </div>
     </section>
@@ -126,103 +126,27 @@ function Hero() {
 }
 
 /**
- * The hero visual, alive: cover art in motion, an equalizer pulsing, segments
- * popping on the beat, and a playhead sweeping the timeline. This whole preview
- * is one block — swap it for a <video autoplay muted loop playsinline> of the
- * real editor running and the rest of the hero stays put.
+ * The hero visual: a real screen-recording of the Irie Cut editor running a
+ * beat-cut (poster paints instantly, the muted loop autoplays). Recorded by
+ * driving the real editor; re-record any time and drop new files in public/.
  */
-function AnimatedBeatCut() {
-  const segs = [
-    { w: 15, c: '#f4b829' },
-    { w: 13, c: '#ff5236' },
-    { w: 13, c: '#25c281' },
-    { w: 17, c: '#f4b829' },
-    { w: 13, c: '#ff5236' },
-    { w: 29, c: '#25c281' },
-  ]
-  const ticks: number[] = []
-  let acc = 0
-  for (const s of segs.slice(0, -1)) {
-    acc += s.w
-    ticks.push(acc)
-  }
-  const eq = [0.2, 0.5, 0.1, 0.7, 0.3, 0.6, 0.15]
-
+function EditorReel() {
   return (
     <div className="rounded-xl border border-primary/15 bg-card/70 p-2 shadow-2xl ring-1 ring-primary/5">
-      <div className="flex items-center gap-2 px-2 py-1.5">
-        <span className="size-2.5 rounded-full bg-[#ff5236]/70" />
-        <span className="size-2.5 rounded-full bg-[#f4b829]/70" />
-        <span className="size-2.5 rounded-full bg-[#25c281]/70" />
-        <span className="ml-2 text-[11px] text-muted-foreground">Irie Cut — Tour teaser</span>
-      </div>
-
       <div className="overflow-hidden rounded-lg border border-border">
-        {/* the "screen" — replace with <video> later */}
-        <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-gradient-to-br from-[#2a1f14] via-[#1a130d] to-black">
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                'radial-gradient(circle at 50% 35%, rgba(244,184,41,0.22), transparent 60%)',
-              animation: 'glow-pulse 4s ease-in-out infinite',
-            }}
-          />
-          <div className="relative text-center">
-            <span className="font-display block text-4xl text-foreground sm:text-5xl">Drift Me Home</span>
-            <span className="mt-1 block text-[11px] uppercase tracking-[0.28em] text-primary">
-              new single · out now
-            </span>
-          </div>
-          {/* equalizer */}
-          <div className="absolute bottom-3 left-1/2 flex h-8 -translate-x-1/2 items-end gap-1">
-            {eq.map((d, i) => (
-              <span
-                key={i}
-                className="eq-bar w-1.5 rounded-full bg-primary/80"
-                style={{ height: '100%', transformOrigin: 'bottom', animation: `eq-bar 0.9s ease-in-out ${d}s infinite` }}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* the beat-cut timeline */}
-        <div className="relative bg-background/80 p-3">
-          {ticks.map((t) => (
-            <span
-              key={t}
-              className="absolute top-2 bottom-2 w-px bg-primary/40"
-              style={{ left: `calc(0.75rem + ${t}% * (100% - 1.5rem) / 100)` }}
-            />
-          ))}
-          {/* sweeping playhead */}
-          <span
-            className="playhead absolute top-1 bottom-1 w-0.5 rounded bg-foreground"
-            style={{ animation: 'playhead-sweep 3.2s ease-in-out infinite alternate' }}
-          />
-          <div className="flex gap-0.5">
-            {segs.map((s, i) => (
-              <div
-                key={i}
-                className="beat-seg h-7 rounded-sm"
-                style={{
-                  width: `${s.w}%`,
-                  background: s.c,
-                  opacity: 0.85,
-                  transformOrigin: 'bottom',
-                  animation: `beat-pop 1.6s ease-in-out ${i * 0.18}s infinite`,
-                }}
-              />
-            ))}
-          </div>
-          <div className="mt-1.5 flex h-7 items-center gap-[2px] rounded-sm bg-secondary/60 px-1.5">
-            {[3, 6, 4, 8, 5, 9, 6, 11, 7, 5, 9, 13, 8, 6, 10, 7, 12, 8, 5, 9, 7, 11, 6, 9, 5, 8, 12, 7, 6, 10, 8, 5, 9, 7, 11, 6, 8, 5, 7, 4].map((h, i) => (
-              <span key={i} className="w-[2px] flex-1 rounded-full bg-foreground/35" style={{ height: `${(h / 13) * 100}%` }} />
-            ))}
-          </div>
-        </div>
+        <video
+          className="block w-full"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          poster="/hero-poster.jpg"
+        >
+          <source src="/hero.webm" type="video/webm" />
+          <source src="/hero.mp4" type="video/mp4" />
+        </video>
       </div>
-
       <div className="flex items-center gap-2 px-1 pt-2 text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1 rounded-full bg-secondary/70 px-2 py-0.5">
           <Music className="size-3 text-primary" /> from Pam
@@ -230,7 +154,7 @@ function AnimatedBeatCut() {
         <span className="inline-flex items-center gap-1 rounded-full bg-secondary/70 px-2 py-0.5">
           <Film className="size-3 text-primary" /> from Video Studio
         </span>
-        <span className="ml-auto">cut to the beat</span>
+        <span className="ml-auto">the real editor, cutting to the beat</span>
       </div>
     </div>
   )
