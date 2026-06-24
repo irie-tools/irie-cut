@@ -55,6 +55,7 @@ export function CommandPalette() {
       { id: 'marker', label: 'Add marker at playhead', hint: 'M', run: () => s().addMarker(s().currentTime) },
       { id: 'beats', label: 'Detect beats on selected clip', run: () => { const id = s().selectedClipId; if (id) void s().detectBeats(id) } },
       { id: 'pulse', label: 'Pulse cover to the beat', run: () => { const id = s().selectedClipId; if (id) void s().pulseToBeats(id) } },
+      { id: 'beatcut', label: 'Cut images to the beat', run: () => { const ids = s().selectedClipIds; if (ids.length) void s().beatCutToBeats(ids, 2) } },
       { id: 'clearMarkers', label: 'Clear all markers', run: () => s().clearMarkers() },
       { id: 'zoomIn', label: 'Zoom in', run: () => s().setZoom(s().zoom * 1.3) },
       { id: 'zoomOut', label: 'Zoom out', run: () => s().setZoom(s().zoom / 1.3) },

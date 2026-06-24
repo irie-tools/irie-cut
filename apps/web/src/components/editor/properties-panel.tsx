@@ -48,6 +48,7 @@ export function PropertiesPanel() {
       </div>
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-5 p-3">
+          <BeatCutControls />
           {clip ? <ClipProps clip={clip} /> : <ProjectProps />}
         </div>
       </ScrollArea>
@@ -227,6 +228,46 @@ function clipEasing(clip: Clip): string {
   const all = (['x', 'y', 'scale', 'rotation', 'opacity'] as const).flatMap((p) => clip.keyframes?.[p] ?? [])
   const eases = new Set(all.map((k) => k.ease ?? 'linear'))
   return eases.size === 1 ? [...eases][0] : 'linear'
+}
+
+function BeatCutControls() {
+  const selectedClipIds = useEditorStore((s) => s.selectedClipIds)
+  const project = useEditorStore((s) => s.project)
+  const beatCutToBeats = useEditorStore((s) => s.beatCutToBeats)
+  const [k, setK] = useState(2)
+  const flat = project?.tracks.flatMap((t) => t.clips) ?? []
+  const visualCount = selectedClipIds.filter((id) => {
+    const c = flat.find((x) => x.id === id)
+    return !!c && (c.type === 'image' || c.type === 'video')
+  }).length
+  const hasSong = project?.tracks.some((t) => t.clips.some((c) => c.type === 'audio' && c.mediaId)) ?? false
+  if (visualCount < 2 || !hasSong) return null
+  return (
+    <div className="space-y-2 rounded-md border border-border p-2.5">
+      <Label className="text-xs font-semibold text-foreground">Beat-cut · {visualCount} images</Label>
+      <div className="flex items-center gap-1.5">
+        {[1, 2, 4].map((opt) => (
+          <button
+            key={opt}
+            onClick={() => setK(opt)}
+            className={cn(
+              'rounded px-2 py-1 text-[11px] transition-colors',
+              k === opt ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {opt === 1 ? 'Every beat' : `Every ${opt}`}
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={() => void beatCutToBeats(selectedClipIds, k)}
+        className="w-full rounded bg-foreground px-2 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90"
+        title="Detect the song's beats and cut these images to them"
+      >
+        Cut {visualCount} images to the beat
+      </button>
+    </div>
+  )
 }
 
 function TransformControls({ clip }: { clip: Clip }) {
