@@ -4,6 +4,12 @@ _Last updated: 2026-06-24. This is the working plan for turning Irie Cut into a 
 2026 in-browser video editor. A fresh chat/agent should read this + [AGENTS.md](AGENTS.md) +
 [ARCHITECTURE.md](ARCHITECTURE.md) before starting._
 
+> **Build status (2026-06-24):** Phases 1–7 are **built and verified** (each phase header below has
+> a status line + collapsed original design). Every tractable feature shipped real; a handful of
+> research-grade rocks (3D-LUT/WebGPU graph, motion tracking, stabilization, AI voice/music,
+> transcript editing, subject-tracked reframe) are **deliberately deferred** with reasons — real over
+> promised. 26 unit tests pass; type-check + production build clean.
+
 ## North Star
 
 **Be the best in-browser video editor of 2026 — Premiere/CapCut-grade — and stay focused.**
@@ -102,7 +108,17 @@ real fade in export; markers show + jump the playhead; undo/redo steps cleanly.
 
 ---
 
-## Phase 2 — Effects & Compositing  (next, in this order)
+## Phase 2 — Effects & Compositing  ✅ BUILT & VERIFIED (2026-06-24)
+
+Shipped: per-clip color adjustments (brightness/contrast/saturation/hue, composed with presets),
+17 blend modes, reveal masks (rect/ellipse/linear + feather + invert, clip-local layer), and a real
+**WebGL chroma key** (YCbCr similarity/smoothness/spill). All through the shared renderer (preview ==
+export); verified via real-renderer pixel reads. Temperature/tint deferred to a future channel-mix
+pass (not faked with CSS).
+
+<details><summary>Original design</summary>
+
+### (next, in this order)
 
 1. **Color adjustments (easy win first):** per-clip brightness/contrast/saturation/temperature/
    hue via `ctx.filter` (already proven — filters render in preview+export). Add an "Adjust" section
@@ -121,7 +137,15 @@ real fade in export; markers show + jump the playhead; undo/redo steps cleanly.
 
 ---
 
-## Phase 3 — Text, Stickers & Overlays
+## Phase 3 — Text, Stickers & Overlays  ✅ BUILT & VERIFIED (2026-06-24)
+
+Shipped: rich text (stroke/shadow/letter-spacing/line-height/rounded bg/typewriter), a curated
+**font picker** (bundled @fontsource families + system stacks, offline), animated text presets on
+keyframes (fade/pop/slide/typewriter), a **vector shapes layer** (rect/ellipse/line/arrow as clips
+with transform+keyframes+blend), and a Stickers tab (shapes + 50-emoji library). Verified end-to-end.
+
+</details>
+<details><summary>Original design</summary>
 
 - **Rich text:** stroke/outline, drop shadow, letter-spacing, line-height, background styles, a real
   **font picker** (bundle a curated set or load Google Fonts), and **animated text presets**
@@ -132,7 +156,16 @@ real fade in export; markers show + jump the playhead; undo/redo steps cleanly.
 
 ---
 
-## Phase 4 — Audio Depth
+## Phase 4 — Audio Depth  ✅ BUILT & VERIFIED (2026-06-24)
+
+Shipped: volume automation (keyframes) + fade in/out (shared effectiveGain → preview & export),
+energy-novelty **beat detection** + snap-to-beat, and **Web Audio effects** (3-band EQ, high-pass
+voice cleanup, compressor, convolver reverb) wired into both the export graph and a preview hybrid
+graph via one shared buildFxChain — verified with OfflineAudioContext (EQ ±12dB, HPF, compressor).
+Deferred (documented): auto-ducking, spectral noise reduction, bundled music/SFX library.
+
+</details>
+<details><summary>Original design</summary>
 
 Audio keyframes (volume automation drawn over the waveform), fade-handles on clips, beat detection
 + snap-to-beat, Web Audio effects (EQ, compressor, reverb), auto-ducking (sidechain voice over
@@ -140,7 +173,17 @@ music), basic noise reduction, and a built-in music/SFX library (bundled or via 
 
 ---
 
-## Phase 5 — Pro Workflow & Export Engine
+## Phase 5 — Pro Workflow & Export Engine  ✅ BUILT & VERIFIED (2026-06-24)
+
+Shipped: **frame-accurate WebCodecs export** (VideoEncoder + offline audio mix + mp4-muxer; default
+"Best quality", realtime kept as "Compatible") — verified a scale animation exports to an exact 3.0s
+with motion baked perfectly (fixes the Phase-1 realtime limitation); multi-select + copy/paste +
+duplicate + frame-accurate nudge; project **export/import bundle**; ⌘K command palette + shortcuts
+cheat sheet. Deferred: OffscreenCanvas-worker rendering + timeline virtualization (WebCodecs already
+delivered the big export-perf win).
+
+</details>
+<details><summary>Original design</summary>
 
 - **WebCodecs export (high priority infra):** replace the realtime `MediaRecorder` exporter with
   `VideoEncoder`/`AudioEncoder` + an mp4 muxer (e.g. `mp4-muxer`) for **frame-accurate, faster,
@@ -156,7 +199,16 @@ music), basic noise reduction, and a built-in music/SFX library (bundled or via 
 
 ---
 
-## Phase 6 — Modern / 2026 AI & GPU
+## Phase 6 — Modern / 2026 AI & GPU  ✅ BUILT (tractable subset) + deliberate deferrals (2026-06-24)
+
+Shipped: **easing / speed-ramp curves** on keyframes (linear/in/out/smooth/hold), 7 **expanded
+transitions** (spin/glitch/zoom-blur/vertical wipes), and **auto-reframe** between aspect ratios
+(per-clip contain/cover fit). Deliberately deferred as research-grade rocks that each need their own
+design pass (real-over-promised): subject/face-tracked reframe, 3D-LUT/WebGPU effect graph, motion
+tracking, stabilization, AI voice-cleanup/music, transcript-based editing.
+
+</details>
+<details><summary>Original design</summary>
 
 Auto-reframe (one aspect → another with subject tracking), text-based editing (edit the transcript →
 trims the video), script-to-video, AI voice cleanup, AI music, motion tracking, stabilization,
@@ -164,13 +216,22 @@ LUTs, WebGPU effect graph, expanded transitions (glitch/3D), speed-ramp curves.
 
 ---
 
-## Phase 7 — Thin Ecosystem Hooks (deferred, optional)
+## Phase 7 — Thin Ecosystem Hooks  ✅ BUILT (minimal, as intended) (2026-06-24)
+
+Shipped: a small **shared brand kit** (brand colours + font, applied to text in one click) plus the
+Phase 5.3 project bundle as the import-from/publish-to portability bridge. Kept deliberately minimal
+— integration points, not features Irie Cut owns.
+
+</details>
+<details><summary>Original design</summary>
 
 Only after the editor is excellent: import-from / publish-to bridges to other Irie platforms, a
 shared brand kit, and handoff/publish destinations. Keep these as **integration points**, never as
 features Irie Cut has to own.
 
 ---
+
+</details>
 
 ## Suggested execution order for the next session
 1. **Phase 1 keyframes** (designed above — build it first, in slices: data+lib+renderer → store →
