@@ -533,9 +533,19 @@ function ClipView({
           </span>
         )}
       </div>
-      {/* Keyframe markers along the bottom: click to jump the playhead to one. */}
+      {/* Trim handles */}
+      <div
+        onPointerDown={(e) => beginDrag(e, 'trim-l')}
+        className="absolute left-0 top-0 h-full w-2 cursor-ew-resize bg-white/0 hover:bg-white/30"
+      />
+      <div
+        onPointerDown={(e) => beginDrag(e, 'trim-r')}
+        className="absolute right-0 top-0 h-full w-2 cursor-ew-resize bg-white/0 hover:bg-white/30"
+      />
+      {/* Keyframe markers along the bottom: click to jump the playhead to one.
+          Rendered after the trim handles with z-20 so edge keyframes stay clickable. */}
       {kfTimes.length > 0 && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0.5 h-2">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0.5 z-20 h-2">
           {kfTimes.map((t) => (
             <button
               key={t}
@@ -550,15 +560,6 @@ function ClipView({
           ))}
         </div>
       )}
-      {/* Trim handles */}
-      <div
-        onPointerDown={(e) => beginDrag(e, 'trim-l')}
-        className="absolute left-0 top-0 h-full w-2 cursor-ew-resize bg-white/0 hover:bg-white/30"
-      />
-      <div
-        onPointerDown={(e) => beginDrag(e, 'trim-r')}
-        className="absolute right-0 top-0 h-full w-2 cursor-ew-resize bg-white/0 hover:bg-white/30"
-      />
     </div>
   )
 }
