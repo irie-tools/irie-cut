@@ -7,6 +7,10 @@ import {
   Trash2,
   Plus,
   Type,
+  Square,
+  Circle,
+  Minus,
+  ArrowRight,
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs'
 import { ScrollArea } from '#/components/ui/scroll-area'
@@ -21,10 +25,11 @@ export function MediaPanel() {
   return (
     <div className="flex h-full flex-col border-r border-border bg-card">
       <Tabs defaultValue="media" className="flex h-full flex-col gap-0">
-        <TabsList className="m-2 grid grid-cols-4">
+        <TabsList className="m-2 grid grid-cols-5">
           <TabsTrigger value="media" className="data-[active]:bg-primary/15 data-[active]:text-primary">Media</TabsTrigger>
           <TabsTrigger value="text" className="data-[active]:bg-primary/15 data-[active]:text-primary">Text</TabsTrigger>
-          <TabsTrigger value="templates" className="data-[active]:bg-primary/15 data-[active]:text-primary">Templates</TabsTrigger>
+          <TabsTrigger value="stickers" className="data-[active]:bg-primary/15 data-[active]:text-primary">Stickers</TabsTrigger>
+          <TabsTrigger value="templates" className="data-[active]:bg-primary/15 data-[active]:text-primary">Layouts</TabsTrigger>
           <TabsTrigger value="ai" className="data-[active]:bg-primary/15 data-[active]:text-primary">AI</TabsTrigger>
         </TabsList>
         <TabsContent value="media" className="min-h-0 flex-1">
@@ -32,6 +37,9 @@ export function MediaPanel() {
         </TabsContent>
         <TabsContent value="text" className="min-h-0 flex-1">
           <TextTab />
+        </TabsContent>
+        <TabsContent value="stickers" className="min-h-0 flex-1">
+          <StickersTab />
         </TabsContent>
         <TabsContent value="templates" className="min-h-0 flex-1">
           <TemplatesTab />
@@ -176,6 +184,63 @@ function TextTab() {
         </div>
       </button>
     </div>
+  )
+}
+
+const SHAPE_BUTTONS = [
+  { kind: 'rect' as const, label: 'Rectangle', Icon: Square },
+  { kind: 'ellipse' as const, label: 'Ellipse', Icon: Circle },
+  { kind: 'line' as const, label: 'Line', Icon: Minus },
+  { kind: 'arrow' as const, label: 'Arrow', Icon: ArrowRight },
+]
+
+// Curated sticker emoji — added to the timeline as text clips.
+const STICKER_EMOJI = [
+  '😀', '😂', '😍', '😎', '🤩', '😭', '🥳', '🤔', '😱', '🔥',
+  '💯', '✨', '⭐', '💥', '❤️', '💔', '👍', '👎', '👀', '🙌',
+  '👏', '🙏', '💪', '🤝', '🎉', '🎊', '🎁', '🏆', '🥇', '💰',
+  '💸', '📈', '📉', '✅', '❌', '⚠️', '❓', '❗', '💡', '🚀',
+  '⚡', '🌟', '🎯', '📌', '🔔', '📢', '💬', '🎵', '🎬', '📸',
+]
+
+function StickersTab() {
+  const addShapeClip = useEditorStore((s) => s.addShapeClip)
+  const addTextClip = useEditorStore((s) => s.addTextClip)
+  return (
+    <ScrollArea className="h-full">
+      <div className="space-y-3 px-3 pb-3">
+        <div>
+          <p className="px-1 pb-1.5 pt-1 text-xs font-medium text-muted-foreground">Shapes</p>
+          <div className="grid grid-cols-4 gap-1.5">
+            {SHAPE_BUTTONS.map(({ kind, label, Icon }) => (
+              <button
+                key={kind}
+                onClick={() => addShapeClip(kind)}
+                title={label}
+                className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+              >
+                <Icon className="size-5" />
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="px-1 pb-1.5 text-xs font-medium text-muted-foreground">Emoji</p>
+          <div className="grid grid-cols-6 gap-1">
+            {STICKER_EMOJI.map((e, i) => (
+              <button
+                key={i}
+                onClick={() => addTextClip(e)}
+                className="flex aspect-square items-center justify-center rounded-md text-xl transition-colors hover:bg-accent"
+                title="Add emoji to timeline"
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </ScrollArea>
   )
 }
 
