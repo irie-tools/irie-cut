@@ -345,8 +345,8 @@ function drawVisualizer(ctx: CanvasRenderingContext2D, project: Project, time: n
   const color = vis.bassReactive && bass > 0.62 ? vis.bassColor || '#ff5236' : vis.color || '#f2ede4'
 
   const cy = (vis.y ?? 0.9) * H
-  const maxHalf = H * 0.05
-  const totalW = W * 0.82
+  const maxHalf = H * 0.075
+  const totalW = W * 0.86
   const x0 = (W - totalW) / 2
   // Symmetric mirror: the bass (most movement) sits at both ends and meets a
   // calmer treble in the centre — or flip to bass-in-centre via bassCenter.
