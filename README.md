@@ -42,19 +42,27 @@ bun run build  # outputs apps/web/dist
 ## AI assist (optional)
 
 Marketing-copy, auto-captions, and image generation run through dependency-free
-serverless functions in `/api` that call an OpenAI-compatible endpoint. The editor
-works fully without them; to enable, set these in your Vercel project env:
+serverless functions in `/api`. The editor works fully without them. Each feature
+picks the provider it's best at:
+
+| Feature | Provider (default) | Key |
+| --- | --- | --- |
+| Copy assist | Vercel AI Gateway → Claude | `AI_GATEWAY_API_KEY` |
+| Image generation | OpenAI `gpt-image-1` | `OPENAI_API_KEY` |
+| Auto-captions | OpenAI Whisper | `OPENAI_API_KEY` |
+
+Set those two keys in your Vercel project env to enable everything. Optional overrides:
 
 ```text
-AI_GATEWAY_API_KEY   required — a Vercel AI Gateway key (or AI_API_KEY / OPENAI_API_KEY)
-AI_BASE_URL          optional — default https://ai-gateway.vercel.sh/v1
-AI_TEXT_MODEL        optional — default openai/gpt-4o-mini
-AI_IMAGE_MODEL       optional — default openai/gpt-image-1
-AI_TRANSCRIBE_MODEL  optional — default whisper-1
+AI_TEXT_MODEL          default anthropic/claude-sonnet-4.6   (gateway slug; dots, not hyphens)
+AI_BASE_URL            default https://ai-gateway.vercel.sh/v1
+AI_IMAGE_MODEL         default gpt-image-1
+AI_IMAGE_BASE_URL      default https://api.openai.com/v1
+AI_TRANSCRIBE_MODEL    default whisper-1
+AI_TRANSCRIBE_BASE_URL default https://api.openai.com/v1
 ```
 
-If your gateway doesn't expose images/transcription, point `AI_BASE_URL` at a
-provider that does. AI runs on the deployed site (or via `vercel dev`), not plain `vite dev`.
+AI runs on the deployed site (or via `vercel dev`), not plain `vite dev`.
 
 ## Deployment
 

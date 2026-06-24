@@ -18,7 +18,8 @@ export default async function handler(req: any, res: any) {
     return res.status(503).json({ error: 'AI is not configured. Add AI_GATEWAY_API_KEY in your Vercel project env.' })
   }
   const base = process.env.AI_BASE_URL || 'https://ai-gateway.vercel.sh/v1'
-  const model = process.env.AI_TEXT_MODEL || 'openai/gpt-4o-mini'
+  // Gateway model slugs use dots for versions, e.g. anthropic/claude-sonnet-4.6
+  const model = process.env.AI_TEXT_MODEL || 'anthropic/claude-sonnet-4.6'
   const { prompt, kind } = (req.body || {}) as { prompt?: string; kind?: string }
   if (!prompt) return res.status(400).json({ error: 'Missing prompt.' })
 

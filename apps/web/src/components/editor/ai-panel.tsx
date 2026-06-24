@@ -20,7 +20,8 @@ export function AITab() {
     <ScrollArea className="h-full">
       <div className="space-y-5 px-3 pb-3 pt-1">
         <p className="rounded-md bg-accent/40 px-2 py-1.5 text-[11px] text-muted-foreground">
-          AI runs on the deployed site once an <code>AI_GATEWAY_API_KEY</code> is set in Vercel.
+          Runs on the deployed site. Copy uses <code>AI_GATEWAY_API_KEY</code> (Claude); image &amp;
+          captions use <code>OPENAI_API_KEY</code>.
         </p>
         <CopyAssist />
         <ImageGen />

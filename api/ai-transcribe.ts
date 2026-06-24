@@ -7,11 +7,13 @@ export const config = { api: { bodyParser: { sizeLimit: '25mb' } } }
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
-  const key = process.env.AI_GATEWAY_API_KEY || process.env.AI_API_KEY || process.env.OPENAI_API_KEY
+  // Transcription goes direct to OpenAI Whisper (the gateway has no audio endpoint).
+  // Override with AI_TRANSCRIBE_* to point at another OpenAI-compatible provider.
+  const key = process.env.AI_TRANSCRIBE_API_KEY || process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY
   if (!key) {
-    return res.status(503).json({ error: 'AI is not configured. Add AI_GATEWAY_API_KEY in your Vercel project env.' })
+    return res.status(503).json({ error: 'Auto-captions need OPENAI_API_KEY in your Vercel project env.' })
   }
-  const base = process.env.AI_BASE_URL || 'https://ai-gateway.vercel.sh/v1'
+  const base = process.env.AI_TRANSCRIBE_BASE_URL || 'https://api.openai.com/v1'
   const model = process.env.AI_TRANSCRIBE_MODEL || 'whisper-1'
   const { audioBase64, mimeType } = (req.body || {}) as { audioBase64?: string; mimeType?: string }
   if (!audioBase64) return res.status(400).json({ error: 'Missing audio.' })

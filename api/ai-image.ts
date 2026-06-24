@@ -4,12 +4,14 @@
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
-  const key = process.env.AI_GATEWAY_API_KEY || process.env.AI_API_KEY || process.env.OPENAI_API_KEY
+  // Image gen defaults to OpenAI direct (the gateway's image path is multimodal,
+  // not the /images/generations REST shape). Override with AI_IMAGE_* to change.
+  const key = process.env.AI_IMAGE_API_KEY || process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY
   if (!key) {
-    return res.status(503).json({ error: 'AI is not configured. Add AI_GATEWAY_API_KEY in your Vercel project env.' })
+    return res.status(503).json({ error: 'Image generation needs OPENAI_API_KEY in your Vercel project env.' })
   }
-  const base = process.env.AI_BASE_URL || 'https://ai-gateway.vercel.sh/v1'
-  const model = process.env.AI_IMAGE_MODEL || 'openai/gpt-image-1'
+  const base = process.env.AI_IMAGE_BASE_URL || 'https://api.openai.com/v1'
+  const model = process.env.AI_IMAGE_MODEL || 'gpt-image-1'
   const { prompt, size } = (req.body || {}) as { prompt?: string; size?: string }
   if (!prompt) return res.status(400).json({ error: 'Missing prompt.' })
 
