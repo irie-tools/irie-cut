@@ -97,6 +97,7 @@ interface EditorState {
   ) => void
   removeKeyframe: (clipId: string, prop: KeyframeProp, t: number) => void
   clearKeyframes: (clipId: string, prop?: KeyframeProp) => void
+  applyTextPreset: (clipId: string, preset: 'none' | 'fade' | 'pop' | 'slide' | 'typewriter') => void
   moveClip: (clipId: string, trackId: string, start: number) => void
   splitAtPlayhead: () => void
   deleteClip: (clipId: string) => void
@@ -505,6 +506,47 @@ export const useEditorStore = create<EditorState>((set, get) => {
             const keyframes = { ...c.keyframes }
             delete keyframes[prop]
             return { ...c, keyframes: Object.keys(keyframes).length ? keyframes : undefined }
+          }),
+        })),
+      }))
+    },
+
+    applyTextPreset(clipId, preset) {
+      mutate((p) => ({
+        ...p,
+        tracks: p.tracks.map((tr) => ({
+          ...tr,
+          clips: tr.clips.map((c) => {
+            if (c.id !== clipId || !c.text) return c
+            const D = c.duration
+            const inT = Math.min(0.5, D * 0.4)
+            const text = { ...c.text, typewriter: preset === 'typewriter', reveal: undefined }
+            switch (preset) {
+              case 'fade':
+                return { ...c, text, keyframes: { opacity: [{ t: 0, value: 0 }, { t: inT, value: 1 }] } }
+              case 'pop':
+                return {
+                  ...c,
+                  text,
+                  keyframes: {
+                    scale: [{ t: 0, value: 0.6 }, { t: Math.min(0.22, D * 0.3), value: 1.12 }, { t: Math.min(0.4, D * 0.5), value: 1 }],
+                    opacity: [{ t: 0, value: 0 }, { t: Math.min(0.18, D * 0.25), value: 1 }],
+                  },
+                }
+              case 'slide':
+                return {
+                  ...c,
+                  text,
+                  keyframes: {
+                    x: [{ t: 0, value: -0.35 }, { t: inT, value: 0 }],
+                    opacity: [{ t: 0, value: 0 }, { t: Math.min(0.3, D * 0.3), value: 1 }],
+                  },
+                }
+              case 'typewriter':
+                return { ...c, text, keyframes: undefined }
+              default:
+                return { ...c, text: { ...c.text, typewriter: false, reveal: undefined }, keyframes: undefined }
+            }
           }),
         })),
       }))

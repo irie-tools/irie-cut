@@ -139,7 +139,10 @@ function applyTransition(ctx: CanvasRenderingContext2D, m: TransitionModifier, W
   }
 }
 
-function drawText(ctx: CanvasRenderingContext2D, clip: Clip, W: number, H: number) {
+/** Characters revealed per second for the typewriter animation. */
+const TYPEWRITER_CPS = 20
+
+function drawText(ctx: CanvasRenderingContext2D, clip: Clip, localTime: number, W: number, H: number) {
   const t = clip.text
   if (!t) return
   const weight = t.bold ? '700' : '400'
@@ -150,11 +153,14 @@ function drawText(ctx: CanvasRenderingContext2D, clip: Clip, W: number, H: numbe
   // Letter spacing (supported in modern canvas; ignored gracefully otherwise).
   ctx.letterSpacing = `${t.letterSpacing ?? 0}px`
 
-  // Typewriter reveal: show only the first `reveal` fraction of characters.
+  // Reveal fraction: animated over time when typewriter is on, else the static `reveal`.
+  let revealFrac = t.reveal ?? 1
+  if (t.typewriter) {
+    revealFrac = Math.max(0, Math.min(1, (localTime * TYPEWRITER_CPS) / Math.max(1, t.content.length)))
+  }
   let content = t.content
-  if (t.reveal != null && t.reveal < 1) {
-    const n = Math.max(0, Math.floor(t.content.length * Math.max(0, t.reveal)))
-    content = t.content.slice(0, n)
+  if (revealFrac < 1) {
+    content = t.content.slice(0, Math.max(0, Math.floor(t.content.length * revealFrac)))
   }
 
   const lines = content.split('\n')
@@ -248,8 +254,9 @@ export function drawFrame(
     for (const clip of track.clips) {
       if (clip.type === 'text' && clipActiveAt(clip, time)) {
         ctx.save()
+        applyClipTransform(ctx, clip, time, W, H)
         applyTransition(ctx, transitionModifier(clip, time), W, H)
-        drawText(ctx, clip, W, H)
+        drawText(ctx, clip, time - clip.start, W, H)
         ctx.restore()
       }
     }

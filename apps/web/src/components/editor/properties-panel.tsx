@@ -18,6 +18,7 @@ import { DEFAULT_ADJUST, isNeutralAdjust } from '#/lib/adjust'
 import { BLEND_MODES, blendOp } from '#/lib/blend'
 import { DEFAULT_MASK, MASK_SHAPES } from '#/lib/mask'
 import { DEFAULT_CHROMA } from '#/lib/chroma'
+import { FONT_OPTIONS, normalizeFont } from '#/lib/fonts'
 import { BEAT_ROLES, roleLabel } from '#/lib/beats'
 import { TRANSITIONS } from '#/lib/transitions'
 import {
@@ -559,19 +560,60 @@ function TransitionControls({ clip }: { clip: Clip }) {
   )
 }
 
+const TEXT_PRESETS: { id: 'fade' | 'pop' | 'slide' | 'typewriter'; label: string }[] = [
+  { id: 'fade', label: 'Fade in' },
+  { id: 'pop', label: 'Pop' },
+  { id: 'slide', label: 'Slide in' },
+  { id: 'typewriter', label: 'Typewriter' },
+]
+
 function TextProps({ clip, text }: { clip: Clip; text: TextProperties }) {
   const updateClip = useEditorStore((s) => s.updateClip)
+  const applyTextPreset = useEditorStore((s) => s.applyTextPreset)
   const set = (patch: Partial<TextProperties>, coalesceKey?: string) =>
     updateClip(clip.id, { text: { ...text, ...patch } }, coalesceKey)
 
   return (
     <>
+      <Row label="Animation">
+        <div className="grid grid-cols-2 gap-1.5">
+          {TEXT_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => applyTextPreset(clip.id, p.id)}
+              className="rounded-md border border-border px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+            >
+              {p.label}
+            </button>
+          ))}
+          <button
+            onClick={() => applyTextPreset(clip.id, 'none')}
+            className="col-span-2 rounded-md border border-transparent px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground"
+          >
+            Clear animation
+          </button>
+        </div>
+      </Row>
       <Row label="Text">
         <Textarea
           value={text.content}
           rows={2}
           onChange={(e) => set({ content: e.target.value }, `txt:${clip.id}`)}
         />
+      </Row>
+      <Row label="Font">
+        <Select value={normalizeFont(text.fontFamily)} onValueChange={(v) => set({ fontFamily: v ?? FONT_OPTIONS[0].value })}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {FONT_OPTIONS.map((f) => (
+              <SelectItem key={f.label} value={f.value}>
+                <span style={{ fontFamily: f.value }}>{f.label}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </Row>
       <Row label={`Font size · ${text.fontSize}px`}>
         <Slider

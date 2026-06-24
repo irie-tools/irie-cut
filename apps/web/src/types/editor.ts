@@ -52,8 +52,10 @@ export interface TextProperties {
   /** Background box padding (px) and corner radius (px). */
   bgPadding?: number
   bgRadius?: number
-  /** Typewriter reveal: fraction 0..1 of characters shown (animated via keyframes-like reveal). */
+  /** Typewriter reveal: static fraction 0..1 of characters shown. */
   reveal?: number
+  /** When set, reveal animates over time (typewriter effect) instead of using `reveal`. */
+  typewriter?: boolean
 }
 
 export interface Clip {
