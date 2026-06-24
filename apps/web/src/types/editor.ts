@@ -37,6 +37,23 @@ export interface TextProperties {
   italic: boolean
   /** Optional solid background behind the text. */
   background?: string
+  /** Outline stroke colour + width (px). Width 0/undefined = no stroke. */
+  strokeColor?: string
+  strokeWidth?: number
+  /** Drop shadow. */
+  shadowColor?: string
+  shadowBlur?: number
+  shadowOffsetX?: number
+  shadowOffsetY?: number
+  /** Extra spacing between letters, px. */
+  letterSpacing?: number
+  /** Line height multiplier (default 1.2). */
+  lineHeight?: number
+  /** Background box padding (px) and corner radius (px). */
+  bgPadding?: number
+  bgRadius?: number
+  /** Typewriter reveal: fraction 0..1 of characters shown (animated via keyframes-like reveal). */
+  reveal?: number
 }
 
 export interface Clip {

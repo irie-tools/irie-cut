@@ -634,6 +634,45 @@ function TextProps({ clip, text }: { clip: Clip; text: TextProperties }) {
       <Row label={`Vertical · ${Math.round(text.y * 100)}%`}>
         <Slider value={[text.y]} min={0} max={1} step={0.01} onValueChange={(v) => set({ y: sv(v) }, `ty:${clip.id}`)} />
       </Row>
+
+      <Label className="block pt-1 text-xs font-semibold text-foreground">Style details</Label>
+      <div className="flex gap-3">
+        <Row label="Outline">
+          <input
+            type="color"
+            value={text.strokeColor ?? '#000000'}
+            onChange={(e) => set({ strokeColor: e.target.value }, `sk:${clip.id}`)}
+            className="h-9 w-full cursor-pointer rounded-md border border-border bg-background"
+          />
+        </Row>
+        <Row label={`Width · ${text.strokeWidth ?? 0}px`}>
+          <Slider value={[text.strokeWidth ?? 0]} min={0} max={20} step={1} onValueChange={(v) => set({ strokeWidth: sv(v) }, `skw:${clip.id}`)} />
+        </Row>
+      </div>
+      <div className="flex gap-3">
+        <Row label="Shadow">
+          <input
+            type="color"
+            value={text.shadowColor ?? '#000000'}
+            onChange={(e) => set({ shadowColor: e.target.value }, `sh:${clip.id}`)}
+            className="h-9 w-full cursor-pointer rounded-md border border-border bg-background"
+          />
+        </Row>
+        <Row label={`Blur · ${text.shadowBlur ?? 0}px`}>
+          <Slider value={[text.shadowBlur ?? 0]} min={0} max={40} step={1} onValueChange={(v) => set({ shadowBlur: sv(v), shadowOffsetY: text.shadowOffsetY ?? 2 }, `shb:${clip.id}`)} />
+        </Row>
+      </div>
+      <Row label={`Letter spacing · ${text.letterSpacing ?? 0}px`}>
+        <Slider value={[text.letterSpacing ?? 0]} min={-10} max={40} step={1} onValueChange={(v) => set({ letterSpacing: sv(v) }, `ls:${clip.id}`)} />
+      </Row>
+      <Row label={`Line height · ${(text.lineHeight ?? 1.2).toFixed(2)}`}>
+        <Slider value={[text.lineHeight ?? 1.2]} min={0.8} max={2.5} step={0.05} onValueChange={(v) => set({ lineHeight: sv(v) }, `lh:${clip.id}`)} />
+      </Row>
+      {text.background && (
+        <Row label={`Box radius · ${text.bgRadius ?? 0}px`}>
+          <Slider value={[text.bgRadius ?? 0]} min={0} max={60} step={1} onValueChange={(v) => set({ bgRadius: sv(v) }, `br:${clip.id}`)} />
+        </Row>
+      )}
     </>
   )
 }

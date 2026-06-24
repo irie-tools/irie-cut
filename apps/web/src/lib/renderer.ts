@@ -147,9 +147,18 @@ function drawText(ctx: CanvasRenderingContext2D, clip: Clip, W: number, H: numbe
   ctx.font = `${style} ${weight} ${t.fontSize}px ${t.fontFamily}, Inter, sans-serif`
   ctx.textBaseline = 'middle'
   ctx.textAlign = t.align
+  // Letter spacing (supported in modern canvas; ignored gracefully otherwise).
+  ctx.letterSpacing = `${t.letterSpacing ?? 0}px`
 
-  const lines = t.content.split('\n')
-  const lineHeight = t.fontSize * 1.2
+  // Typewriter reveal: show only the first `reveal` fraction of characters.
+  let content = t.content
+  if (t.reveal != null && t.reveal < 1) {
+    const n = Math.max(0, Math.floor(t.content.length * Math.max(0, t.reveal)))
+    content = t.content.slice(0, n)
+  }
+
+  const lines = content.split('\n')
+  const lineHeight = t.fontSize * (t.lineHeight ?? 1.2)
   const cx = t.x * W
   const cy = t.y * H
   const totalH = lineHeight * lines.length
@@ -158,13 +167,41 @@ function drawText(ctx: CanvasRenderingContext2D, clip: Clip, W: number, H: numbe
   if (t.background) {
     let maxW = 0
     for (const line of lines) maxW = Math.max(maxW, ctx.measureText(line).width)
-    const padX = t.fontSize * 0.3
-    const padY = t.fontSize * 0.2
+    const padX = t.bgPadding ?? t.fontSize * 0.3
+    const padY = t.bgPadding ?? t.fontSize * 0.2
     let bx = cx - padX
     if (t.align === 'center') bx = cx - maxW / 2 - padX
     else if (t.align === 'right') bx = cx - maxW - padX
     ctx.fillStyle = t.background
-    ctx.fillRect(bx, startY - lineHeight / 2 - padY, maxW + padX * 2, totalH + padY * 2)
+    const bw = maxW + padX * 2
+    const bh = totalH + padY * 2
+    const by = startY - lineHeight / 2 - padY
+    const radius = Math.min(t.bgRadius ?? 0, bw / 2, bh / 2)
+    if (radius > 0 && typeof ctx.roundRect === 'function') {
+      ctx.beginPath()
+      ctx.roundRect(bx, by, bw, bh, radius)
+      ctx.fill()
+    } else {
+      ctx.fillRect(bx, by, bw, bh)
+    }
+  }
+
+  // Drop shadow (applies to the fill/stroke below).
+  if (t.shadowColor && (t.shadowBlur || t.shadowOffsetX || t.shadowOffsetY)) {
+    ctx.shadowColor = t.shadowColor
+    ctx.shadowBlur = t.shadowBlur ?? 0
+    ctx.shadowOffsetX = t.shadowOffsetX ?? 0
+    ctx.shadowOffsetY = t.shadowOffsetY ?? 0
+  }
+
+  // Outline stroke under the fill.
+  if (t.strokeColor && (t.strokeWidth ?? 0) > 0) {
+    ctx.strokeStyle = t.strokeColor
+    ctx.lineWidth = t.strokeWidth!
+    ctx.lineJoin = 'round'
+    lines.forEach((line, i) => ctx.strokeText(line, cx, startY + i * lineHeight))
+    // Don't let the shadow double-draw under the fill.
+    ctx.shadowColor = 'transparent'
   }
 
   ctx.fillStyle = t.color
