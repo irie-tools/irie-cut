@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, Clapperboard, Undo2, Redo2 } from 'lucide-react'
+import { ArrowLeft, Undo2, Redo2 } from 'lucide-react'
+import { LogoMark } from '#/components/logo'
 import {
   ResizableHandle,
   ResizablePanel,
@@ -105,7 +106,7 @@ export function Editor({ projectId }: { projectId: string }) {
           >
             <ArrowLeft className="size-4" />
           </Link>
-          <Clapperboard className="size-5 text-primary" />
+          <LogoMark className="size-6" />
           <ProjectMenu />
           <div className="ml-1 flex items-center">
             <HistoryButtons />

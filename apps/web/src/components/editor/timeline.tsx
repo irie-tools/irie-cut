@@ -159,10 +159,10 @@ export function Timeline() {
 
             {/* Playhead spanning ruler + tracks */}
             <div
-              className="pointer-events-none absolute top-0 bottom-0 z-20 w-px bg-primary"
+              className="pointer-events-none absolute top-0 bottom-0 z-20 w-px bg-primary shadow-[0_0_6px_var(--color-primary)]"
               style={{ left: currentTime * pps }}
             >
-              <div className="absolute -left-[5px] top-0 size-0 border-x-[5px] border-t-[7px] border-x-transparent border-t-primary" />
+              <div className="absolute -left-[5px] -top-px size-2.5 -translate-x-px rotate-45 rounded-[2px] bg-primary shadow-[0_0_6px_var(--color-primary)]" />
             </div>
           </div>
         </div>
@@ -468,9 +468,11 @@ function ClipView({
     <div
       onPointerDown={(e) => beginDrag(e, 'move')}
       className={cn(
-        'group absolute top-1.5 bottom-1.5 cursor-grab overflow-hidden rounded-md border text-white active:cursor-grabbing',
+        'group absolute top-1.5 bottom-1.5 cursor-grab overflow-hidden rounded-lg border text-white shadow-sm transition-[filter,box-shadow] hover:brightness-110 active:cursor-grabbing',
         CLIP_COLORS[clip.type],
-        selected && 'ring-2 ring-primary ring-offset-1 ring-offset-background',
+        selected
+          ? 'z-10 ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/20'
+          : 'border-white/10',
       )}
       style={{ left, width }}
     >

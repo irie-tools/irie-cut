@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Button } from '#/components/ui/button'
+import { Logo } from '#/components/logo'
 import {
   Clapperboard,
   Scissors,
@@ -53,9 +54,8 @@ function SiteHeader() {
 
 function Brand() {
   return (
-    <Link to="/" className="flex items-center gap-2 font-semibold">
-      <Clapperboard className="size-6 text-primary" />
-      <span className="text-lg">Irie Cut</span>
+    <Link to="/">
+      <Logo className="text-lg" />
     </Link>
   )
 }
