@@ -127,9 +127,10 @@ function applyClipTransform(
 function applyTransition(ctx: CanvasRenderingContext2D, m: TransitionModifier, W: number, H: number) {
   ctx.globalAlpha *= m.alpha
   if (m.dx || m.dy) ctx.translate(m.dx * W, m.dy * H)
-  if (m.scale !== 1) {
+  if (m.scale !== 1 || m.rotate) {
     ctx.translate(W / 2, H / 2)
-    ctx.scale(m.scale, m.scale)
+    if (m.rotate) ctx.rotate((m.rotate * Math.PI) / 180)
+    if (m.scale !== 1) ctx.scale(m.scale, m.scale)
     ctx.translate(-W / 2, -H / 2)
   }
   if (m.clip) {

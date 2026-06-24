@@ -25,6 +25,11 @@ export const TRANSITIONS: TransitionOption[] = [
   { id: 'zoom-out', label: 'Zoom out' },
   { id: 'wipe-left', label: 'Wipe left' },
   { id: 'wipe-right', label: 'Wipe right' },
+  { id: 'wipe-up', label: 'Wipe up' },
+  { id: 'wipe-down', label: 'Wipe down' },
+  { id: 'spin', label: 'Spin' },
+  { id: 'glitch', label: 'Glitch' },
+  { id: 'zoom-blur', label: 'Zoom blur' },
 ]
 
 export interface TransitionModifier {
@@ -34,14 +39,22 @@ export interface TransitionModifier {
   dy: number
   /** Uniform scale around the clip centre. */
   scale: number
+  /** Rotation around the clip centre, in degrees. */
+  rotate: number
   /** Reveal rectangle as fractions of the canvas (0..1), or null for full. */
   clip: { x: number; y: number; w: number; h: number } | null
 }
 
-const IDENTITY: TransitionModifier = { alpha: 1, dx: 0, dy: 0, scale: 1, clip: null }
+const IDENTITY: TransitionModifier = { alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, clip: null }
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n))
+}
+
+/** Deterministic 0..1 hash for glitch jitter. */
+function hash(n: number): number {
+  const s = Math.sin(n * 127.1) * 43758.5453
+  return s - Math.floor(s)
 }
 
 /** Apply an entering transition. `p` runs 0 (just started) → 1 (fully in). */
@@ -76,6 +89,28 @@ function enter(type: string, p: number, m: TransitionModifier) {
       break
     case 'wipe-right':
       m.clip = { x: 1 - p, y: 0, w: p, h: 1 }
+      break
+    case 'wipe-up':
+      m.clip = { x: 0, y: 1 - p, w: 1, h: p }
+      break
+    case 'wipe-down':
+      m.clip = { x: 0, y: 0, w: 1, h: p }
+      break
+    case 'spin':
+      m.rotate += -120 * e
+      m.scale *= 0.5 + 0.5 * p
+      m.alpha *= p
+      break
+    case 'glitch': {
+      const seed = Math.floor(p * 28)
+      m.dx += (hash(seed) - 0.5) * 0.1 * e
+      m.dy += (hash(seed + 9) - 0.5) * 0.06 * e
+      m.alpha *= (0.55 + 0.45 * hash(seed + 3)) * (0.4 + 0.6 * p)
+      break
+    }
+    case 'zoom-blur':
+      m.scale *= 2 - p
+      m.alpha *= p * p
       break
   }
 }
@@ -113,6 +148,28 @@ function exit(type: string, q: number, m: TransitionModifier) {
     case 'wipe-right':
       m.clip = { x: 1 - q, y: 0, w: q, h: 1 }
       break
+    case 'wipe-up':
+      m.clip = { x: 0, y: 1 - q, w: 1, h: q }
+      break
+    case 'wipe-down':
+      m.clip = { x: 0, y: 0, w: 1, h: q }
+      break
+    case 'spin':
+      m.rotate += 120 * e
+      m.scale *= 1 - 0.5 * e
+      m.alpha *= q
+      break
+    case 'glitch': {
+      const seed = Math.floor(q * 28)
+      m.dx += (hash(seed) - 0.5) * 0.1 * e
+      m.dy += (hash(seed + 9) - 0.5) * 0.06 * e
+      m.alpha *= (0.55 + 0.45 * hash(seed + 3)) * (0.4 + 0.6 * q)
+      break
+    }
+    case 'zoom-blur':
+      m.scale *= 2 - q
+      m.alpha *= q * q
+      break
   }
 }
 
@@ -122,7 +179,7 @@ export function transitionModifier(clip: Clip, t: number): TransitionModifier {
   const tout = clip.transitionOut
   if ((!tin || tin.type === 'none') && (!tout || tout.type === 'none')) return IDENTITY
 
-  const m: TransitionModifier = { alpha: 1, dx: 0, dy: 0, scale: 1, clip: null }
+  const m: TransitionModifier = { alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, clip: null }
   const start = clip.start
   const end = clip.start + clip.duration
 
