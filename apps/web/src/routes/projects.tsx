@@ -82,13 +82,13 @@ function ProjectsInner() {
     }
   }
 
-  async function handlePamImport(file: File) {
+  async function handlePromoImport(file: File) {
     setImporting(true)
     try {
       const id = await buildPromoProject(await file.text())
       navigate({ to: '/editor/$projectId', params: { projectId: id } })
     } catch {
-      alert('Could not import that song — make sure it is a Pam promo bundle (.iriepromo.json).')
+      alert('Could not import that bundle — make sure it is an Irie promo bundle (.iriepromo.json).')
     } finally {
       setImporting(false)
     }
@@ -162,12 +162,15 @@ function ProjectsInner() {
               hidden
               onChange={(e) => {
                 const f = e.target.files?.[0]
-                if (f) void handlePamImport(f)
+                if (f) void handlePromoImport(f)
                 e.target.value = ''
               }}
             />
             <Button variant="outline" onClick={() => pamRef.current?.click()} disabled={importing}>
               <Music className="size-4" /> Import from Pam
+            </Button>
+            <Button variant="outline" onClick={() => pamRef.current?.click()} disabled={importing}>
+              <Film className="size-4" /> Import from Video Studio
             </Button>
             <Button variant="outline" onClick={() => importRef.current?.click()} disabled={importing}>
               <Upload className="size-4" /> {importing ? 'Importing…' : 'Import'}
