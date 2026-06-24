@@ -6,6 +6,7 @@
 import type { Project } from '#/types/editor'
 import { drawFrame, clipActiveAt, type RenderSources } from '#/lib/renderer'
 import { effectiveGain, anySolo } from '#/lib/audio'
+import { buildFxChain, isNeutralFx } from '#/lib/audio-fx'
 import { projectDuration } from '#/stores/editor-store'
 
 export interface ExportResult {
@@ -80,13 +81,24 @@ export async function exportProject(
         const srcNode = audioCtx.createMediaElementSource(el)
         const gain = audioCtx.createGain()
         gain.gain.value = 0
-        srcNode.connect(gain).connect(audioDest)
+        if (clip.audioFx && !isNeutralFx(clip.audioFx)) {
+          const fx = buildFxChain(audioCtx, clip.audioFx)
+          srcNode.connect(fx.input)
+          fx.output.connect(gain)
+          gain.connect(audioDest)
+        } else {
+          srcNode.connect(gain).connect(audioDest)
+        }
         audioNodes.set(clip.id, { el, gain })
         ready.push(waitCanPlay(el))
       }
     }
   }
   await Promise.race([Promise.all(ready), delay(4000)])
+  // Make sure bundled fonts are loaded so text bakes correctly (no fallback glyphs).
+  if (typeof document !== 'undefined' && document.fonts?.ready) {
+    await Promise.race([document.fonts.ready, delay(2000)])
+  }
 
   const sources: RenderSources = {
     getVideo: (id) => videoEls.get(id),

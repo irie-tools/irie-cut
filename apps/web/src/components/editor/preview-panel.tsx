@@ -5,7 +5,61 @@ import { useEditorStore, projectDuration } from '#/stores/editor-store'
 import { drawFrame, clipActiveAt, type RenderSources } from '#/lib/renderer'
 import { formatTimecode } from '#/lib/media'
 import { effectiveGain, anySolo } from '#/lib/audio'
+import { buildFxChain, isNeutralFx, DEFAULT_FX, type FxChain } from '#/lib/audio-fx'
 import type { Project } from '#/types/editor'
+
+// Preview audio-effects graph (Phase 4.4). Clips with audioFx route their media
+// element through a Web Audio chain so the live preview matches the export. The
+// same buildFxChain() runs in both. Falls back to direct el.volume on any error.
+let previewAudioCtx: AudioContext | null = null
+const fxGraphs = new Map<string, { chain: FxChain; gain: GainNode }>()
+
+function ensurePreviewAudioCtx(): AudioContext | null {
+  if (previewAudioCtx) return previewAudioCtx
+  try {
+    const Ctor: typeof AudioContext =
+      window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    previewAudioCtx = new Ctor()
+  } catch {
+    previewAudioCtx = null
+  }
+  return previewAudioCtx
+}
+
+/** Apply a clip's gain in the preview, routing through its fx chain when present. */
+function applyPreviewGain(el: HTMLMediaElement, clipId: string, gainVal: number, fx: typeof DEFAULT_FX | undefined, playing: boolean) {
+  const active = fx && !isNeutralFx(fx)
+  const existing = fxGraphs.get(clipId)
+  if (!active && !existing) {
+    el.volume = gainVal
+    return
+  }
+  const ctx = ensurePreviewAudioCtx()
+  if (!ctx) {
+    el.volume = gainVal
+    return
+  }
+  let g = existing
+  if (!g) {
+    try {
+      const source = ctx.createMediaElementSource(el)
+      const chain = buildFxChain(ctx, fx ?? DEFAULT_FX)
+      const gain = ctx.createGain()
+      source.connect(chain.input)
+      chain.output.connect(gain)
+      gain.connect(ctx.destination)
+      g = { chain, gain }
+      fxGraphs.set(clipId, g)
+    } catch {
+      el.volume = gainVal
+      return
+    }
+  }
+  g.chain.update(active ? fx! : DEFAULT_FX)
+  g.gain.gain.value = gainVal
+  el.volume = 1 // the graph controls the level now
+  if (ctx.state === 'suspended' && playing) void ctx.resume()
+}
 
 export function PreviewPanel() {
   const project = useEditorStore((s) => s.project)
@@ -209,7 +263,7 @@ function syncMedia(
       const speed = clip.speed ?? 1
       const target = clip.trimStart + (time - clip.start) * speed
       el.muted = false
-      el.volume = effectiveGain(project, track, clip, time, soloActive)
+      applyPreviewGain(el, clip.id, effectiveGain(project, track, clip, time, soloActive), clip.audioFx, playing)
       if (el.playbackRate !== speed) el.playbackRate = speed
 
       if (active) {
@@ -242,6 +296,17 @@ function syncMedia(
   prune(maps.videoEls, neededVideo)
   prune(maps.audioEls, neededAudio)
   prune(maps.imageEls, neededImage)
+  // Tear down fx graphs for clips that are gone.
+  for (const [id, g] of fxGraphs) {
+    if (!neededVideo.has(id) && !neededAudio.has(id)) {
+      try {
+        g.gain.disconnect()
+      } catch {
+        /* already disconnected */
+      }
+      fxGraphs.delete(id)
+    }
+  }
 }
 
 function prune<T extends HTMLMediaElement | HTMLImageElement>(

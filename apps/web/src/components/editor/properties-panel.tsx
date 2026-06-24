@@ -21,6 +21,7 @@ import { DEFAULT_MASK, MASK_SHAPES } from '#/lib/mask'
 import { DEFAULT_CHROMA } from '#/lib/chroma'
 import { FONT_OPTIONS, normalizeFont } from '#/lib/fonts'
 import { clipVolumeAt } from '#/lib/audio'
+import { DEFAULT_FX, isNeutralFx } from '#/lib/audio-fx'
 import { BEAT_ROLES, roleLabel } from '#/lib/beats'
 import { TRANSITIONS } from '#/lib/transitions'
 import {
@@ -105,6 +106,8 @@ function ClipProps({ clip }: { clip: Clip }) {
       {(clip.type === 'video' || clip.type === 'audio') && <VolumeControls clip={clip} />}
 
       {(clip.type === 'video' || clip.type === 'audio') && clip.mediaId && <BeatControls clip={clip} />}
+
+      {(clip.type === 'video' || clip.type === 'audio') && <AudioFxControls clip={clip} />}
 
       {(clip.type === 'video' || clip.type === 'audio') && (
         <Row label={`Speed · ${(clip.speed ?? 1).toFixed(2)}×`}>
@@ -382,6 +385,41 @@ function AdjustControls({ clip }: { clip: Clip }) {
             step={row.step}
             onValueChange={(v) => set({ [row.key]: sv(v) }, row.key)}
           />
+        </Row>
+      ))}
+    </>
+  )
+}
+
+const FX_ROWS: { key: keyof typeof DEFAULT_FX; label: string; min: number; max: number; step: number; fmt: (v: number) => string }[] = [
+  { key: 'highpass', label: 'Voice cleanup', min: 0, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
+  { key: 'eqLow', label: 'EQ Low', min: -12, max: 12, step: 0.5, fmt: (v) => `${v > 0 ? '+' : ''}${v} dB` },
+  { key: 'eqMid', label: 'EQ Mid', min: -12, max: 12, step: 0.5, fmt: (v) => `${v > 0 ? '+' : ''}${v} dB` },
+  { key: 'eqHigh', label: 'EQ High', min: -12, max: 12, step: 0.5, fmt: (v) => `${v > 0 ? '+' : ''}${v} dB` },
+  { key: 'compressor', label: 'Compressor', min: 0, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
+  { key: 'reverb', label: 'Reverb', min: 0, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
+]
+
+function AudioFxControls({ clip }: { clip: Clip }) {
+  const updateClip = useEditorStore((s) => s.updateClip)
+  const fx = { ...DEFAULT_FX, ...(clip.audioFx ?? {}) }
+  const neutral = isNeutralFx(clip.audioFx)
+  const set = (patch: Partial<typeof DEFAULT_FX>, key: string) =>
+    updateClip(clip.id, { audioFx: { ...fx, ...patch } }, `fx:${key}:${clip.id}`)
+
+  return (
+    <>
+      <div className="flex items-center justify-between pt-1">
+        <Label className="text-xs font-semibold text-foreground">Audio FX</Label>
+        {!neutral && (
+          <button onClick={() => updateClip(clip.id, { audioFx: undefined })} className="text-[10px] text-muted-foreground hover:text-foreground">
+            Reset
+          </button>
+        )}
+      </div>
+      {FX_ROWS.map((row) => (
+        <Row key={row.key} label={`${row.label} · ${row.fmt(fx[row.key])}`}>
+          <Slider value={[fx[row.key]]} min={row.min} max={row.max} step={row.step} onValueChange={(v) => set({ [row.key]: sv(v) }, row.key)} />
         </Row>
       ))}
     </>
