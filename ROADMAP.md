@@ -43,7 +43,22 @@ easing curves; faster export.
 
 ---
 
-## Phase 1 — Motion & Keyframes  ✅ DESIGNED, BUILD FIRST
+## Phase 1 — Motion & Keyframes  ✅ BUILT & VERIFIED (2026-06-24)
+
+**Status:** shipped in 5 verified slices (data+lib+renderer → store → panel UX → timeline
+markers → verify). Linear-interp keyframes on `x/y/scale/rotation/opacity` animate in the shared
+renderer (so preview == export), are undo-able, and persist. Verified in-browser against the real
+`drawFrame`: scale 1.0→1.25 ramps then clamps (500→562→624px square), opacity 0→1 fades
+(luma 0→128→255), live preview animates, panel diamonds + slider-write-at-playhead + timeline
+markers + marker-jump + undo/redo all work.
+
+> Note on export: the realtime `MediaRecorder`/`captureStream` exporter renders the correct
+> animated frames (same `drawFrame`), but in headless capture it drops early frames / yields a
+> low-frame-count file. This is the pre-existing realtime-export fidelity limit already slated for
+> **Phase 5 WebCodecs** — not a keyframe issue. Next motion slices: easing curves, drag-to-retime
+> markers on the clip.
+
+<details><summary>Original design (kept for reference)</summary>
 
 **Goal:** animate `x, y, scale, rotation, opacity` per clip over time (Ken Burns, slide-in, pulse,
 fade). Linear interpolation v1 (easing curves later). Renders in preview AND export; undo-able.
@@ -82,6 +97,8 @@ later slice.)
 
 **Verify:** scale 1.0→1.5 across a clip → preview grows, exported mid-frame ≈1.25×; opacity 0→1 →
 real fade in export; markers show + jump the playhead; undo/redo steps cleanly.
+
+</details>
 
 ---
 
