@@ -58,6 +58,14 @@ export interface Clip {
   volume: number
   /** Color-grade filter preset id for video/image clips (see lib/filters). */
   filter?: string
+  /** Per-clip color adjustments, composed after the preset (see lib/adjust). */
+  adjust?: { brightness: number; contrast: number; saturation: number; hue: number }
+  /** Per-clip blend mode (canvas globalCompositeOperation); 'normal'/undefined = source-over. */
+  blend?: string
+  /** Per-clip reveal mask (see lib/mask). */
+  mask?: { shape: 'rect' | 'ellipse' | 'linear'; x: number; y: number; w: number; h: number; angle?: number; feather?: number; invert?: boolean }
+  /** Chroma key (green-screen) removal via the WebGL pass (see lib/chroma). */
+  chroma?: { color: string; similarity: number; smoothness: number; spill: number }
   /** Story beat role for producer handoff/EDL (see lib/beats). */
   role?: string
   /** Enter/exit transitions (see lib/transitions). */

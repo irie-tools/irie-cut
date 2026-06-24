@@ -4,8 +4,15 @@
 
 import type { Clip, Project } from '#/types/editor'
 import { filterCss } from '#/lib/filters'
+import { adjustCss } from '#/lib/adjust'
 import { transitionModifier, type TransitionModifier } from '#/lib/transitions'
 import { transformAt } from '#/lib/keyframes'
+
+/** Combined canvas `filter` for a clip: color-grade preset + per-clip adjustments. */
+function effectiveFilter(clip: Clip): string {
+  const combined = [filterCss(clip.filter), adjustCss(clip.adjust)].filter(Boolean).join(' ')
+  return combined || 'none'
+}
 
 export interface RenderSources {
   getVideo: (clipId: string) => HTMLVideoElement | undefined
@@ -121,7 +128,7 @@ export function drawFrame(
           ctx.save()
           applyClipTransform(ctx, clip, time, W, H)
           applyTransition(ctx, transitionModifier(clip, time), W, H)
-          ctx.filter = filterCss(clip.filter) || 'none'
+          ctx.filter = effectiveFilter(clip)
           ctx.drawImage(el, box.x, box.y, box.w, box.h)
           ctx.restore()
         }
@@ -132,7 +139,7 @@ export function drawFrame(
           ctx.save()
           applyClipTransform(ctx, clip, time, W, H)
           applyTransition(ctx, transitionModifier(clip, time), W, H)
-          ctx.filter = filterCss(clip.filter) || 'none'
+          ctx.filter = effectiveFilter(clip)
           ctx.drawImage(el, box.x, box.y, box.w, box.h)
           ctx.restore()
         }

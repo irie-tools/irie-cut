@@ -14,6 +14,7 @@ import {
   type KeyframeProp,
 } from '#/lib/keyframes'
 import { FILTER_PRESETS } from '#/lib/filters'
+import { DEFAULT_ADJUST, isNeutralAdjust } from '#/lib/adjust'
 import { BEAT_ROLES, roleLabel } from '#/lib/beats'
 import { TRANSITIONS } from '#/lib/transitions'
 import {
@@ -147,6 +148,8 @@ function ClipProps({ clip }: { clip: Clip }) {
           </div>
         </Row>
       )}
+
+      {(clip.type === 'video' || clip.type === 'image') && <AdjustControls clip={clip} />}
 
       {clip.type !== 'audio' && <TransitionControls clip={clip} />}
 
@@ -315,6 +318,49 @@ function KeyframeRow({
         onValueChange={onSlide}
       />
     </div>
+  )
+}
+
+const ADJUST_ROWS: { key: 'brightness' | 'contrast' | 'saturation' | 'hue'; label: string; min: number; max: number; step: number; mid: number; fmt: (v: number) => string }[] = [
+  { key: 'brightness', label: 'Brightness', min: 0.5, max: 1.5, step: 0.01, mid: 1, fmt: (v) => `${Math.round(v * 100)}%` },
+  { key: 'contrast', label: 'Contrast', min: 0.5, max: 1.5, step: 0.01, mid: 1, fmt: (v) => `${Math.round(v * 100)}%` },
+  { key: 'saturation', label: 'Saturation', min: 0, max: 2, step: 0.01, mid: 1, fmt: (v) => `${Math.round(v * 100)}%` },
+  { key: 'hue', label: 'Hue', min: -180, max: 180, step: 1, mid: 0, fmt: (v) => `${Math.round(v)}°` },
+]
+
+function AdjustControls({ clip }: { clip: Clip }) {
+  const updateClip = useEditorStore((s) => s.updateClip)
+  const adj = { ...DEFAULT_ADJUST, ...(clip.adjust ?? {}) }
+  const neutral = isNeutralAdjust(clip.adjust)
+  const set = (patch: Partial<typeof DEFAULT_ADJUST>, key: string) =>
+    updateClip(clip.id, { adjust: { ...adj, ...patch } }, `adj:${key}:${clip.id}`)
+
+  return (
+    <>
+      <div className="flex items-center justify-between pt-1">
+        <Label className="text-xs font-semibold text-foreground">Adjust</Label>
+        {!neutral && (
+          <button
+            onClick={() => updateClip(clip.id, { adjust: undefined })}
+            className="text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            title="Reset color adjustments"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+      {ADJUST_ROWS.map((row) => (
+        <Row key={row.key} label={`${row.label} · ${row.fmt(adj[row.key])}`}>
+          <Slider
+            value={[adj[row.key]]}
+            min={row.min}
+            max={row.max}
+            step={row.step}
+            onValueChange={(v) => set({ [row.key]: sv(v) }, row.key)}
+          />
+        </Row>
+      ))}
+    </>
   )
 }
 
