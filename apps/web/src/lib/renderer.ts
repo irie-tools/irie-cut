@@ -10,6 +10,7 @@ import { applyClipMask } from '#/lib/mask'
 import { chromaKey } from '#/lib/chroma'
 import { transitionModifier, type TransitionModifier } from '#/lib/transitions'
 import { transformAt } from '#/lib/keyframes'
+import { getSpectrum } from '#/lib/audio-spectrum'
 
 /** Reused offscreen layer for clip-local compositing (masks). Sized to the project. */
 let scratch: HTMLCanvasElement | null = null
@@ -308,6 +309,67 @@ function drawText(ctx: CanvasRenderingContext2D, clip: Clip, localTime: number, 
   }
 }
 
+/**
+ * The on-frame audio "sound bar": a row of mirrored bars across the bottom,
+ * low frequencies left → highs right, height driven by the song's spectrum at
+ * this time (from the cached analysis). Flashes bassColor on strong low-end.
+ */
+function drawVisualizer(ctx: CanvasRenderingContext2D, project: Project, time: number, W: number, H: number): void {
+  const vis = project.visualizer
+  if (!vis?.enabled) return
+  let song: Clip | null = null
+  for (const track of project.tracks) {
+    for (const clip of track.clips) {
+      if (clip.type === 'audio' && clip.mediaId) {
+        song = clip
+        break
+      }
+    }
+    if (song) break
+  }
+  if (!song?.mediaId) return
+  const spec = getSpectrum(song.mediaId)
+  if (!spec) return
+
+  const audioTime = time - song.start + song.trimStart
+  if (audioTime < 0 || audioTime > spec.frameCount / spec.fps + 0.5) return
+  const fi = Math.min(spec.frameCount - 1, Math.max(0, Math.floor(audioTime * spec.fps)))
+  const N = spec.bands
+  const base = fi * N
+
+  // Bass energy = mean of the lowest ~18% of bands.
+  const lowCount = Math.max(1, Math.floor(N * 0.18))
+  let bass = 0
+  for (let b = 0; b < lowCount; b++) bass += spec.data[base + b]
+  bass /= lowCount
+  const color = vis.bassReactive && bass > 0.62 ? vis.bassColor || '#ff5236' : vis.color || '#f2ede4'
+
+  const cy = (vis.y ?? 0.9) * H
+  const maxHalf = H * 0.05
+  const totalW = W * 0.82
+  const x0 = (W - totalW) / 2
+  const slot = totalW / N
+  const barW = Math.max(2, slot * 0.55)
+  const radius = barW / 2
+
+  ctx.save()
+  ctx.globalAlpha = 0.92
+  ctx.fillStyle = color
+  for (let b = 0; b < N; b++) {
+    const mag = spec.data[base + b]
+    const half = Math.max(barW * 0.6, mag * maxHalf)
+    const x = x0 + b * slot + (slot - barW) / 2
+    if (typeof ctx.roundRect === 'function') {
+      ctx.beginPath()
+      ctx.roundRect(x, cy - half, barW, half * 2, radius)
+      ctx.fill()
+    } else {
+      ctx.fillRect(x, cy - half, barW, half * 2)
+    }
+  }
+  ctx.restore()
+}
+
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
   project: Project,
@@ -346,6 +408,9 @@ export function drawFrame(
       }
     }
   }
+
+  // Audio "sound bar" visualizer — over the imagery, under the captions.
+  drawVisualizer(ctx, project, time, W, H)
 
   // Text always renders on top.
   for (const track of project.tracks) {

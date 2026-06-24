@@ -27,6 +27,7 @@ import { planBeatCut, clipsFromSegments, type BeatCutSource } from '#/lib/beat-c
 import { motionKeyframes, type MotionPreset } from '#/lib/motion'
 import { transcribe } from '#/lib/ai'
 import { syncLyricsToAudio } from '#/lib/lyric-sync'
+import { computeSpectrum, getSpectrum } from '#/lib/audio-spectrum'
 import { CAPTION_STYLES } from '#/lib/caption-styles'
 import type { Template } from '#/lib/templates'
 
@@ -128,6 +129,7 @@ interface EditorState {
   pulseToBeats: (coverClipId: string) => Promise<number>
   applyMotion: (clipId: string, preset: MotionPreset) => Promise<void>
   resyncCaptions: () => Promise<number>
+  setVisualizer: (patch: Partial<NonNullable<Project['visualizer']>>) => Promise<void>
   beatCutToBeats: (clipIds: string[], k?: number) => Promise<number>
   duplicateClip: (clipId: string) => void
   selectClip: (clipId: string | null, additive?: boolean) => void
@@ -185,6 +187,23 @@ export const useEditorStore = create<EditorState>((set, get) => {
     return null
   }
 
+  /** Analyse the song for the sound-bar visualizer, then nudge a redraw. */
+  async function ensureSpectrum() {
+    const p = get().project
+    if (!p?.visualizer?.enabled) return
+    const song = p.tracks.flatMap((t) => t.clips).find((c) => c.type === 'audio' && c.mediaId)
+    if (!song?.mediaId || getSpectrum(song.mediaId)) return
+    const blob = await storage.getMediaBlob(song.mediaId)
+    if (!blob) return
+    try {
+      await computeSpectrum(song.mediaId, blob)
+    } catch {
+      return
+    }
+    // Force the paused preview frame to repaint now the bars are available.
+    set({ currentTime: get().currentTime + 0.0001 })
+  }
+
   /** Pick (or lazily create) a track suitable for a given clip type. */
   function trackForType(p: Project, type: ClipType): { project: Project; trackId: string } {
     const wanted: TrackType = type === 'audio' ? 'audio' : type === 'text' ? 'text' : 'video'
@@ -236,6 +255,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
         past: [],
         future: [],
       })
+      // Warm the visualizer spectrum so the bars appear without a manual nudge.
+      void ensureSpectrum()
     },
 
     undo() {
@@ -862,6 +883,12 @@ export const useEditorStore = create<EditorState>((set, get) => {
           ),
         })),
       }))
+    },
+
+    async setVisualizer(patch) {
+      const cur = get().project?.visualizer ?? { enabled: false }
+      mutate((p) => ({ ...p, visualizer: { ...cur, ...patch } }))
+      if (get().project?.visualizer?.enabled) await ensureSpectrum()
     },
 
     async resyncCaptions() {

@@ -236,6 +236,10 @@ export async function buildPromoProject(json: string): Promise<string> {
     name: `${b.title || (source === 'studio' ? 'Studio promo' : 'Song')} — promo`,
     createdAt: now, updatedAt: now,
     width, height, fps, background: '#000000', masterVolume: 1, markers: [],
+    // Music promos get the on-frame sound bar by default (off for no-audio bundles).
+    visualizer: audioId
+      ? { enabled: true, color: '#f2ede4', bassColor: '#ff5236', bassReactive: true, y: 0.9 }
+      : undefined,
     promo: { source, title: b.title || '', artist: b.artist, campaign: b.campaign ?? null },
     tracks,
   }

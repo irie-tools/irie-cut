@@ -5,6 +5,7 @@
 
 import type { Project } from '#/types/editor'
 import { drawFrame, clipActiveAt, type RenderSources } from '#/lib/renderer'
+import { ensureSpectrumForExport } from '#/lib/audio-spectrum'
 import { effectiveGain, anySolo } from '#/lib/audio'
 import { buildFxChain, isNeutralFx } from '#/lib/audio-fx'
 import { projectDuration } from '#/stores/editor-store'
@@ -39,6 +40,15 @@ export async function exportProject(
 ): Promise<ExportResult> {
   const total = projectDuration(project)
   if (total <= 0) throw new Error('Nothing to export — the timeline is empty.')
+  await ensureSpectrumForExport(project, async (id) => {
+    const url = getUrl(id)
+    if (!url) return undefined
+    try {
+      return await fetch(url).then((r) => r.blob())
+    } catch {
+      return undefined
+    }
+  })
 
   const fps = project.fps || 30
   const canvas = document.createElement('canvas')

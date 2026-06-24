@@ -1118,8 +1118,10 @@ function ProjectProps() {
   const project = useEditorStore((s) => s.project)
   const updateProject = useEditorStore((s) => s.updateProject)
   const reframe = useEditorStore((s) => s.reframe)
+  const setVisualizer = useEditorStore((s) => s.setVisualizer)
   if (!project) return null
   const ratio = project.width / project.height
+  const vis = project.visualizer
   return (
     <>
       <Row label="Resolution">
@@ -1154,6 +1156,56 @@ function ProjectProps() {
           onChange={(e) => updateProject({ background: e.target.value }, 'project-bg')}
           className="h-9 w-full cursor-pointer rounded-md border border-border bg-background"
         />
+      </Row>
+      <Row label="Sound bar">
+        <div className="space-y-2">
+          <button
+            onClick={() => void setVisualizer({ enabled: !vis?.enabled })}
+            className={cn(
+              'w-full rounded-md border py-1.5 text-xs transition-colors',
+              vis?.enabled ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {vis?.enabled ? 'On — visualizer baked into the video' : 'Off'}
+          </button>
+          {vis?.enabled && (
+            <>
+              <button
+                onClick={() => void setVisualizer({ bassReactive: !vis?.bassReactive })}
+                className={cn(
+                  'w-full rounded-md border py-1.5 text-[11px] transition-colors',
+                  vis?.bassReactive ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {vis?.bassReactive ? 'Bass colour flash: on' : 'Bass colour flash: off'}
+              </button>
+              <div className="flex gap-2">
+                <label className="flex-1 text-[10px] text-muted-foreground">
+                  Bars
+                  <input
+                    type="color"
+                    value={vis?.color || '#f2ede4'}
+                    onChange={(e) => void setVisualizer({ color: e.target.value })}
+                    className="h-8 w-full cursor-pointer rounded-md border border-border bg-background"
+                  />
+                </label>
+                <label className="flex-1 text-[10px] text-muted-foreground">
+                  Bass
+                  <input
+                    type="color"
+                    value={vis?.bassColor || '#ff5236'}
+                    onChange={(e) => void setVisualizer({ bassColor: e.target.value })}
+                    className="h-8 w-full cursor-pointer rounded-md border border-border bg-background"
+                  />
+                </label>
+              </div>
+            </>
+          )}
+          <p className="text-[10px] text-muted-foreground">
+            A waveform bar across the bottom that reacts to the music — on by default for music
+            promos.
+          </p>
+        </div>
       </Row>
       <p className="pt-2 text-xs text-muted-foreground">
         Select a clip on the timeline to edit its properties.

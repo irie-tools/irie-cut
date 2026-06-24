@@ -177,6 +177,18 @@ export interface Project {
   masterVolume?: number
   /** Timeline markers (seconds + label). */
   markers?: { id: string; time: number; label: string }[]
+  /** On-frame audio "sound bar" visualizer (reacts to the song; baked into export). */
+  visualizer?: {
+    enabled: boolean
+    /** Bar colour (CSS). Default cream. */
+    color?: string
+    /** Bar colour when the bass thumps, if bassReactive. Default energy red. */
+    bassColor?: string
+    /** Flash bassColor on strong low-end hits. */
+    bassReactive?: boolean
+    /** Vertical centre, 0..1 of the frame. Default 0.9 (near the bottom). */
+    y?: number
+  }
   /** Promo provenance when this project was started from a Pam song (see lib/pam-import). */
   promo?: {
     source: 'pam' | 'studio'

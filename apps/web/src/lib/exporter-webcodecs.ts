@@ -7,6 +7,7 @@
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 import type { Project } from '#/types/editor'
 import { drawFrame, clipActiveAt, type RenderSources } from '#/lib/renderer'
+import { ensureSpectrumForExport } from '#/lib/audio-spectrum'
 import { effectiveGain, anySolo } from '#/lib/audio'
 import { buildFxChain, isNeutralFx } from '#/lib/audio-fx'
 import { projectDuration } from '#/stores/editor-store'
@@ -101,6 +102,7 @@ export async function exportProjectWebCodecs(
 ): Promise<WebCodecsResult> {
   const total = projectDuration(project)
   if (total <= 0) throw new Error('Nothing to export — the timeline is empty.')
+  await ensureSpectrumForExport(project, getBlob)
 
   const fps = opts.fps ?? project.fps ?? 30
   const width = project.width
