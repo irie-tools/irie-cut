@@ -75,6 +75,9 @@ interface EditorState {
   getMediaUrl: (mediaId: string) => string | undefined
 
   addTrack: (type: TrackType) => string
+  updateTrack: (trackId: string, patch: Partial<Track>) => void
+  removeTrack: (trackId: string) => void
+  moveTrack: (trackId: string, dir: -1 | 1) => void
   addClipFromMedia: (mediaId: string, atTime?: number) => void
   addTextClip: () => void
   applyTemplate: (template: Template) => void
@@ -275,9 +278,31 @@ export const useEditorStore = create<EditorState>((set, get) => {
       const id = uid()
       mutate((p) => ({
         ...p,
-        tracks: [...p.tracks, { id, type, name: trackName(type), muted: false, clips: [] }],
+        tracks: [...p.tracks, { id, type, name: trackName(type), muted: false, solo: false, volume: 1, clips: [] }],
       }))
       return id
+    },
+
+    updateTrack(trackId, patch) {
+      mutate((p) => ({
+        ...p,
+        tracks: p.tracks.map((t) => (t.id === trackId ? { ...t, ...patch } : t)),
+      }))
+    },
+
+    removeTrack(trackId) {
+      mutate((p) => ({ ...p, tracks: p.tracks.filter((t) => t.id !== trackId) }))
+    },
+
+    moveTrack(trackId, dir) {
+      mutate((p) => {
+        const i = p.tracks.findIndex((t) => t.id === trackId)
+        const j = i + dir
+        if (i < 0 || j < 0 || j >= p.tracks.length) return p
+        const tracks = [...p.tracks]
+        ;[tracks[i], tracks[j]] = [tracks[j], tracks[i]]
+        return { ...p, tracks }
+      })
     },
 
     addClipFromMedia(mediaId, atTime) {
@@ -506,10 +531,12 @@ export async function createProject(name: string, opts?: Partial<Project>): Prom
     height: opts?.height ?? 1080,
     fps: opts?.fps ?? 30,
     background: opts?.background ?? '#000000',
+    masterVolume: 1,
+    markers: [],
     tracks: [
-      { id: uid(), type: 'text', name: 'Text', muted: false, clips: [] },
-      { id: uid(), type: 'video', name: 'Video', muted: false, clips: [] },
-      { id: uid(), type: 'audio', name: 'Audio', muted: false, clips: [] },
+      { id: uid(), type: 'text', name: 'Text', muted: false, solo: false, volume: 1, clips: [] },
+      { id: uid(), type: 'video', name: 'Video', muted: false, solo: false, volume: 1, clips: [] },
+      { id: uid(), type: 'audio', name: 'Audio', muted: false, solo: false, volume: 1, clips: [] },
     ],
   }
   await storage.saveProject(project)

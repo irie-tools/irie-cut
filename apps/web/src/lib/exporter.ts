@@ -5,6 +5,7 @@
 
 import type { Project } from '#/types/editor'
 import { drawFrame, clipActiveAt, type RenderSources } from '#/lib/renderer'
+import { effectiveGain, anySolo } from '#/lib/audio'
 import { projectDuration } from '#/stores/editor-store'
 
 export interface ExportResult {
@@ -163,6 +164,7 @@ function syncExport(
   sources: RenderSources,
   audioNodes: Map<string, AudioNodeBundle>,
 ) {
+  const soloActive = anySolo(project)
   for (const track of project.tracks) {
     for (const clip of track.clips) {
       if (clip.type !== 'video' && clip.type !== 'audio') continue
@@ -179,7 +181,7 @@ function syncExport(
         } else if (Math.abs(el.currentTime - target) > 0.3 && Number.isFinite(target)) {
           trySeek(el, target)
         }
-        if (bundle) bundle.gain.gain.value = track.muted ? 0 : Math.max(0, Math.min(1, clip.volume))
+        if (bundle) bundle.gain.gain.value = effectiveGain(project, track, clip, t, soloActive)
       } else {
         if (!el.paused) el.pause()
         if (bundle) bundle.gain.gain.value = 0

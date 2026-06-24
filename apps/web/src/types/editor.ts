@@ -71,6 +71,12 @@ export interface Track {
   type: TrackType
   name: string
   muted: boolean
+  /** Solo isolates this track's audio (and any other soloed tracks). Optional for older projects. */
+  solo?: boolean
+  /** Locked tracks ignore clip edits. Optional for older projects. */
+  locked?: boolean
+  /** 0..1 per-track gain. Optional for older projects (defaults to 1). */
+  volume?: number
   clips: Clip[]
 }
 
@@ -84,6 +90,10 @@ export interface Project {
   fps: number
   /** Background colour of the canvas, any CSS colour. */
   background: string
+  /** 0..1 master output gain. Optional for older projects (defaults to 1). */
+  masterVolume?: number
+  /** Timeline markers (seconds + label). */
+  markers?: { id: string; time: number; label: string }[]
   tracks: Track[]
 }
 

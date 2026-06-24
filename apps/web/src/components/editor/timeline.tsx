@@ -9,6 +9,10 @@ import {
   Music,
   Type,
   Image as ImageIcon,
+  Lock,
+  Unlock,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react'
 import {
   useEditorStore,
@@ -18,6 +22,7 @@ import {
 import type { Clip, Track } from '#/types/editor'
 import { cn } from '#/lib/utils'
 import { roleLabel } from '#/lib/beats'
+import { Slider } from '#/components/ui/slider'
 
 export function Timeline() {
   const project = useEditorStore((s) => s.project)
@@ -94,32 +99,128 @@ export function Timeline() {
         </div>
       </div>
 
-      {/* Scrollable timeline */}
-      <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-auto">
-        <div style={{ width: contentWidth }} className="relative">
-          <Ruler seconds={contentSeconds} pps={pps} onPointerDown={onRulerDown} />
+      {/* Body: fixed track-header gutter + horizontally scrollable lanes */}
+      <div className="flex min-h-0 flex-1 overflow-y-auto">
+        <div className="w-40 shrink-0 border-r border-border bg-card/40">
+          <div className="h-7 border-b border-border" />
+          {project.tracks.map((track, i) => (
+            <TrackHeader key={track.id} track={track} index={i} total={project.tracks.length} />
+          ))}
+        </div>
 
-          <div className="relative">
-            {project.tracks.map((track) => (
-              <TrackRow
-                key={track.id}
-                track={track}
-                pps={pps}
-                selectedClipId={selectedClipId}
-                onSelect={selectClip}
-                timeFromEvent={timeFromEvent}
-              />
-            ))}
-          </div>
+        <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-x-auto">
+          <div style={{ width: contentWidth }} className="relative">
+            <Ruler seconds={contentSeconds} pps={pps} onPointerDown={onRulerDown} />
 
-          {/* Playhead spanning ruler + tracks */}
-          <div
-            className="pointer-events-none absolute top-0 bottom-0 z-20 w-px bg-primary"
-            style={{ left: currentTime * pps }}
-          >
-            <div className="absolute -left-[5px] top-0 size-0 border-x-[5px] border-t-[7px] border-x-transparent border-t-primary" />
+            <div className="relative">
+              {project.tracks.map((track) => (
+                <TrackRow
+                  key={track.id}
+                  track={track}
+                  pps={pps}
+                  selectedClipId={selectedClipId}
+                  onSelect={selectClip}
+                  timeFromEvent={timeFromEvent}
+                />
+              ))}
+            </div>
+
+            {/* Playhead spanning ruler + tracks */}
+            <div
+              className="pointer-events-none absolute top-0 bottom-0 z-20 w-px bg-primary"
+              style={{ left: currentTime * pps }}
+            >
+              <div className="absolute -left-[5px] top-0 size-0 border-x-[5px] border-t-[7px] border-x-transparent border-t-primary" />
+            </div>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function TrackHeader({ track, index, total }: { track: Track; index: number; total: number }) {
+  const updateTrack = useEditorStore((s) => s.updateTrack)
+  const removeTrack = useEditorStore((s) => s.removeTrack)
+  const moveTrack = useEditorStore((s) => s.moveTrack)
+  const Icon = TRACK_ICON[track.type]
+  const hasAudio = track.type === 'video' || track.type === 'audio'
+  const vol = track.volume ?? 1
+
+  return (
+    <div className="group/th flex h-14 flex-col justify-center gap-1 border-b border-border/60 px-2 py-1">
+      <div className="flex items-center gap-1">
+        <Icon className="size-3 shrink-0 text-muted-foreground" />
+        <input
+          value={track.name}
+          onChange={(e) => updateTrack(track.id, { name: e.target.value })}
+          className="min-w-0 flex-1 truncate bg-transparent text-[11px] font-medium outline-none"
+        />
+        <button
+          onClick={() => updateTrack(track.id, { muted: !track.muted })}
+          title="Mute"
+          className={cn(
+            'rounded px-1 text-[9px] font-bold',
+            track.muted ? 'bg-destructive/20 text-destructive' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          M
+        </button>
+        <button
+          onClick={() => updateTrack(track.id, { solo: !track.solo })}
+          title="Solo"
+          className={cn(
+            'rounded px-1 text-[9px] font-bold',
+            track.solo ? 'bg-amber-500/20 text-amber-400' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          S
+        </button>
+        <button
+          onClick={() => updateTrack(track.id, { locked: !track.locked })}
+          title={track.locked ? 'Unlock' : 'Lock'}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          {track.locked ? <Lock className="size-3" /> : <Unlock className="size-3" />}
+        </button>
+      </div>
+      {hasAudio ? (
+        <Slider
+          value={[vol]}
+          min={0}
+          max={1}
+          step={0.01}
+          onValueChange={(v) =>
+            updateTrack(track.id, { volume: Array.isArray(v) ? v[0] : (v as number) })
+          }
+        />
+      ) : (
+        <div className="h-3" />
+      )}
+      <div className="flex items-center gap-1 opacity-0 transition group-hover/th:opacity-100">
+        <button
+          onClick={() => moveTrack(track.id, -1)}
+          disabled={index === 0}
+          title="Move up"
+          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+        >
+          <ChevronUp className="size-3" />
+        </button>
+        <button
+          onClick={() => moveTrack(track.id, 1)}
+          disabled={index === total - 1}
+          title="Move down"
+          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+        >
+          <ChevronDown className="size-3" />
+        </button>
+        <button
+          onClick={() => removeTrack(track.id)}
+          title="Delete track"
+          className="ml-auto text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 className="size-3" />
+        </button>
       </div>
     </div>
   )
@@ -180,7 +281,6 @@ function TrackRow({
   timeFromEvent: (clientX: number) => number
 }) {
   const addClipFromMedia = useEditorStore((s) => s.addClipFromMedia)
-  const Icon = TRACK_ICON[track.type]
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault()
@@ -197,9 +297,6 @@ function TrackRow({
       onDragOver={(e) => e.preventDefault()}
       onDrop={onDrop}
     >
-      <div className="pointer-events-none absolute left-1 top-1 z-10 flex items-center gap-1 text-[10px] text-muted-foreground/70">
-        <Icon className="size-3" />
-      </div>
       {track.clips.map((clip) => (
         <ClipView
           key={clip.id}
@@ -207,6 +304,7 @@ function TrackRow({
           pps={pps}
           selected={clip.id === selectedClipId}
           onSelect={onSelect}
+          locked={!!track.locked}
         />
       ))}
     </div>
@@ -225,11 +323,13 @@ function ClipView({
   pps,
   selected,
   onSelect,
+  locked,
 }: {
   clip: Clip
   pps: number
   selected: boolean
   onSelect: (id: string | null) => void
+  locked: boolean
 }) {
   const left = clip.start * pps
   const width = Math.max(8, clip.duration * pps)
@@ -239,6 +339,7 @@ function ClipView({
     e.preventDefault()
     e.stopPropagation()
     onSelect(clip.id)
+    if (locked) return
     const store = useEditorStore.getState()
     const asset = clip.mediaId ? store.media.find((m) => m.id === clip.mediaId) : undefined
     const sourceMax = asset && asset.type !== 'image' ? asset.duration : Infinity

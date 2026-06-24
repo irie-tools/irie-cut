@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { Play, Pause, SkipBack, SkipForward } from 'lucide-react'
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react'
+import { Slider } from '#/components/ui/slider'
 import { useEditorStore, projectDuration } from '#/stores/editor-store'
 import { drawFrame, clipActiveAt, type RenderSources } from '#/lib/renderer'
 import { formatTimecode } from '#/lib/media'
+import { effectiveGain, anySolo } from '#/lib/audio'
 import type { Project } from '#/types/editor'
 
 export function PreviewPanel() {
@@ -111,6 +113,34 @@ function Transport() {
       <div className="ml-2 font-mono text-xs tabular-nums text-muted-foreground">
         {formatTimecode(currentTime)} / {formatTimecode(total)}
       </div>
+      <MasterVolume />
+    </div>
+  )
+}
+
+function MasterVolume() {
+  const master = useEditorStore((s) => s.project?.masterVolume ?? 1)
+  const updateProject = useEditorStore((s) => s.updateProject)
+  const muted = master === 0
+  return (
+    <div className="ml-2 flex items-center gap-2" title="Master volume">
+      <button
+        onClick={() => updateProject({ masterVolume: muted ? 1 : 0 })}
+        className="text-muted-foreground transition-colors hover:text-foreground"
+        aria-label={muted ? 'Unmute' : 'Mute'}
+      >
+        {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+      </button>
+      <Slider
+        value={[master]}
+        min={0}
+        max={1}
+        step={0.01}
+        onValueChange={(v) =>
+          updateProject({ masterVolume: Array.isArray(v) ? v[0] : (v as number) }, 'master-vol')
+        }
+        className="w-24"
+      />
     </div>
   )
 }
@@ -132,6 +162,7 @@ function syncMedia(
   const neededVideo = new Set<string>()
   const neededAudio = new Set<string>()
   const neededImage = new Set<string>()
+  const soloActive = anySolo(project)
 
   for (const track of project.tracks) {
     for (const clip of track.clips) {
@@ -166,8 +197,8 @@ function syncMedia(
 
       const active = clipActiveAt(clip, time)
       const target = clip.trimStart + (time - clip.start)
-      el.muted = track.muted
-      el.volume = Math.max(0, Math.min(1, clip.volume))
+      el.muted = false
+      el.volume = effectiveGain(project, track, clip, time, soloActive)
 
       if (active) {
         if (playing) {
