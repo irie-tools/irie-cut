@@ -1,7 +1,12 @@
 # AGENTS.md — orientation for AI agents
 
 Start here, then read **[ARCHITECTURE.md](ARCHITECTURE.md)** (the code graph: module
-diagram, data flows, and a per-file map). This file is the 30-second version.
+diagram, data flows, and a per-file map) and **[ROADMAP.md](ROADMAP.md)** (the plan & handoff:
+North Star, what's built, and the phased feature roadmap — Phase 1 Motion & Keyframes is
+designed and ready to build first). This file is the 30-second version.
+
+**Mission in one line:** the best in-browser video editor of 2026 (Premiere/CapCut-grade),
+focused — NOT an all-in-one media hub. Depth over breadth, real over promised.
 
 ## What this is
 **Irie Cut** — a free, client-side, in-browser video/media editor + studio. Pure SPA
