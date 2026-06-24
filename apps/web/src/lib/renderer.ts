@@ -5,6 +5,7 @@
 import type { Clip, Project } from '#/types/editor'
 import { filterCss } from '#/lib/filters'
 import { transitionModifier, type TransitionModifier } from '#/lib/transitions'
+import { transformAt } from '#/lib/keyframes'
 
 export interface RenderSources {
   getVideo: (clipId: string) => HTMLVideoElement | undefined
@@ -24,10 +25,19 @@ function containBox(srcW: number, srcH: number, dstW: number, dstH: number) {
   return { x: (dstW - w) / 2, y: (dstH - h) / 2, w, h }
 }
 
-/** Apply a clip's static transform (position/scale/rotation/opacity). Caller must ctx.save() first. */
-function applyClipTransform(ctx: CanvasRenderingContext2D, clip: Clip, W: number, H: number) {
-  const tr = clip.transform
-  if (!tr) return
+/**
+ * Apply a clip's effective transform (position/scale/rotation/opacity) at
+ * `time`, resolving keyframe animation via `transformAt`. Caller must ctx.save()
+ * first. Clips with no transform and no keyframes resolve to identity (no-op).
+ */
+function applyClipTransform(
+  ctx: CanvasRenderingContext2D,
+  clip: Clip,
+  time: number,
+  W: number,
+  H: number,
+) {
+  const tr = transformAt(clip, time - clip.start)
   ctx.globalAlpha *= Math.max(0, Math.min(1, tr.opacity))
   if (tr.x || tr.y) ctx.translate(tr.x * W, tr.y * H)
   if (tr.scale !== 1 || tr.rotation) {
@@ -109,7 +119,7 @@ export function drawFrame(
         if (el && el.readyState >= 2 && el.videoWidth) {
           const box = containBox(el.videoWidth, el.videoHeight, W, H)
           ctx.save()
-          applyClipTransform(ctx, clip, W, H)
+          applyClipTransform(ctx, clip, time, W, H)
           applyTransition(ctx, transitionModifier(clip, time), W, H)
           ctx.filter = filterCss(clip.filter) || 'none'
           ctx.drawImage(el, box.x, box.y, box.w, box.h)
@@ -120,7 +130,7 @@ export function drawFrame(
         if (el && el.complete && el.naturalWidth) {
           const box = containBox(el.naturalWidth, el.naturalHeight, W, H)
           ctx.save()
-          applyClipTransform(ctx, clip, W, H)
+          applyClipTransform(ctx, clip, time, W, H)
           applyTransition(ctx, transitionModifier(clip, time), W, H)
           ctx.filter = filterCss(clip.filter) || 'none'
           ctx.drawImage(el, box.x, box.y, box.w, box.h)

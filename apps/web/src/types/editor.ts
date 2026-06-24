@@ -67,6 +67,15 @@ export interface Clip {
   speed?: number
   /** Visual transform for video/image clips. */
   transform?: { x: number; y: number; scale: number; rotation: number; opacity: number }
+  /**
+   * Per-property animation keyframes (Phase 1: Motion & Keyframes).
+   * `t` is seconds relative to the clip's start, kept time-sorted. A property
+   * with no keyframes uses the static `transform` value; with keyframes the
+   * animation (linear interpolation) overrides it. See lib/keyframes.ts.
+   */
+  keyframes?: Partial<
+    Record<'x' | 'y' | 'scale' | 'rotation' | 'opacity', { t: number; value: number }[]>
+  >
   text?: TextProperties
 }
 
