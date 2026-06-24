@@ -1,11 +1,13 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Clapperboard,
   Plus,
   Trash2,
   Film,
   Clock,
+  Upload,
+  Download,
 } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import {
@@ -28,6 +30,7 @@ import {
 import { ClientOnly } from '#/components/client-only'
 import type { Project } from '#/types/editor'
 import { getAllProjects, deleteProject } from '#/lib/storage'
+import { exportProjectBundle, importProjectBundle } from '#/lib/project-io'
 import { createProject, projectDuration } from '#/stores/editor-store'
 import { formatDuration } from '#/lib/media'
 
@@ -61,6 +64,32 @@ function ProjectsInner() {
   const [name, setName] = useState('')
   const [preset, setPreset] = useState('landscape')
   const [creating, setCreating] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const importRef = useRef<HTMLInputElement>(null)
+
+  async function handleImport(file: File) {
+    setImporting(true)
+    try {
+      const id = await importProjectBundle(file)
+      navigate({ to: '/editor/$projectId', params: { projectId: id } })
+    } catch {
+      alert('Could not import that file — make sure it is an Irie Cut project (.json).')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  async function handleExport(id: string, e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    const { blob, name } = await exportProjectBundle(id)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${name.replace(/[^a-z0-9-_ ]/gi, '').trim().replace(/\s+/g, '-') || 'project'}.iriecut.json`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  }
 
   async function refresh() {
     setProjects(await getAllProjects())
@@ -99,9 +128,25 @@ function ProjectsInner() {
             <Clapperboard className="size-6 text-primary" />
             <span className="text-lg">Irie Cut</span>
           </Link>
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="size-4" /> New project
-          </Button>
+          <div className="flex items-center gap-2">
+            <input
+              ref={importRef}
+              type="file"
+              accept="application/json,.json"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) void handleImport(f)
+                e.target.value = ''
+              }}
+            />
+            <Button variant="outline" onClick={() => importRef.current?.click()} disabled={importing}>
+              <Upload className="size-4" /> {importing ? 'Importing…' : 'Import'}
+            </Button>
+            <Button onClick={() => setOpen(true)}>
+              <Plus className="size-4" /> New project
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -141,13 +186,23 @@ function ProjectsInner() {
                       {formatDuration(projectDuration(p))} · {p.width}×{p.height}
                     </p>
                   </div>
-                  <button
-                    onClick={(e) => handleDelete(p.id, e)}
-                    className="rounded-md p-1.5 text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                    aria-label="Delete project"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      onClick={(e) => handleExport(p.id, e)}
+                      className="rounded-md p-1.5 text-muted-foreground opacity-0 transition hover:bg-accent hover:text-foreground group-hover:opacity-100"
+                      aria-label="Export project file"
+                      title="Export project (.json)"
+                    >
+                      <Download className="size-4" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDelete(p.id, e)}
+                      className="rounded-md p-1.5 text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                      aria-label="Delete project"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
                 </div>
               </Link>
             ))}
