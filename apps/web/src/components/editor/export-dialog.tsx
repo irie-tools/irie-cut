@@ -12,7 +12,10 @@ import {
 import { Progress } from '#/components/ui/progress'
 import { useEditorStore, projectDuration } from '#/stores/editor-store'
 import { exportProject } from '#/lib/exporter'
+import { exportProjectWebCodecs, webCodecsSupported } from '#/lib/exporter-webcodecs'
+import * as storage from '#/lib/storage'
 import { formatTimecode } from '#/lib/media'
+import { cn } from '#/lib/utils'
 import { buildSrt, buildVtt, buildCues } from '#/lib/captions'
 import { buildEdl, buildCutdown, beatSummary } from '#/lib/beats'
 
@@ -26,6 +29,8 @@ export function ExportButton() {
   const [phase, setPhase] = useState<Phase>('idle')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState('')
+  const wcSupported = webCodecsSupported()
+  const [engine, setEngine] = useState<'webcodecs' | 'realtime'>(wcSupported ? 'webcodecs' : 'realtime')
 
   const total = projectDuration(project)
   const empty = total <= 0
@@ -67,9 +72,11 @@ export function ExportButton() {
     setProgress(0)
     setError('')
     try {
-      const { blob, extension } = await exportProject(project, getMediaUrl, (f) =>
-        setProgress(Math.round(f * 100)),
-      )
+      const onP = (f: number) => setProgress(Math.round(f * 100))
+      const { blob, extension } =
+        engine === 'webcodecs' && wcSupported
+          ? await exportProjectWebCodecs(project, getMediaUrl, (id) => storage.getMediaBlob(id), onP, {})
+          : await exportProject(project, getMediaUrl, onP)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -111,10 +118,37 @@ export function ExportButton() {
 
           <div className="py-2">
             {phase === 'idle' && (
-              <p className="text-sm text-muted-foreground">
-                Your timeline will be rendered in real time and downloaded when finished.
-                Keep this tab focused during export.
-              </p>
+              <div className="space-y-3">
+                {wcSupported && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setEngine('webcodecs')}
+                      className={cn(
+                        'rounded-lg border p-2.5 text-left transition-colors',
+                        engine === 'webcodecs' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50',
+                      )}
+                    >
+                      <p className="text-sm font-medium">Best quality</p>
+                      <p className="text-[11px] text-muted-foreground">WebCodecs · frame-accurate, faster</p>
+                    </button>
+                    <button
+                      onClick={() => setEngine('realtime')}
+                      className={cn(
+                        'rounded-lg border p-2.5 text-left transition-colors',
+                        engine === 'realtime' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50',
+                      )}
+                    >
+                      <p className="text-sm font-medium">Compatible</p>
+                      <p className="text-[11px] text-muted-foreground">Realtime recorder · widest support</p>
+                    </button>
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  {engine === 'webcodecs'
+                    ? 'Rendered frame-by-frame for an exact, high-quality MP4.'
+                    : 'Rendered in real time. Keep this tab focused during export.'}
+                </p>
+              </div>
             )}
             {phase === 'exporting' && (
               <div className="space-y-3">
