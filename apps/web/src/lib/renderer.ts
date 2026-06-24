@@ -5,6 +5,7 @@
 import type { Clip, Project } from '#/types/editor'
 import { filterCss } from '#/lib/filters'
 import { adjustCss } from '#/lib/adjust'
+import { blendOp } from '#/lib/blend'
 import { transitionModifier, type TransitionModifier } from '#/lib/transitions'
 import { transformAt } from '#/lib/keyframes'
 
@@ -12,6 +13,29 @@ import { transformAt } from '#/lib/keyframes'
 function effectiveFilter(clip: Clip): string {
   const combined = [filterCss(clip.filter), adjustCss(clip.adjust)].filter(Boolean).join(' ')
   return combined || 'none'
+}
+
+/**
+ * Composite one video/image clip: transform → transition → filter/adjust →
+ * blend mode → (mask) → draw. Shared by preview + export. `srcW/srcH` are the
+ * source's natural dimensions; `box` is its contain-fit destination rect.
+ */
+function compositeMedia(
+  ctx: CanvasRenderingContext2D,
+  clip: Clip,
+  el: CanvasImageSource,
+  box: { x: number; y: number; w: number; h: number },
+  time: number,
+  W: number,
+  H: number,
+) {
+  ctx.save()
+  applyClipTransform(ctx, clip, time, W, H)
+  applyTransition(ctx, transitionModifier(clip, time), W, H)
+  ctx.filter = effectiveFilter(clip)
+  ctx.globalCompositeOperation = blendOp(clip.blend)
+  ctx.drawImage(el, box.x, box.y, box.w, box.h)
+  ctx.restore()
 }
 
 export interface RenderSources {
@@ -125,23 +149,13 @@ export function drawFrame(
         const el = sources.getVideo(clip.id)
         if (el && el.readyState >= 2 && el.videoWidth) {
           const box = containBox(el.videoWidth, el.videoHeight, W, H)
-          ctx.save()
-          applyClipTransform(ctx, clip, time, W, H)
-          applyTransition(ctx, transitionModifier(clip, time), W, H)
-          ctx.filter = effectiveFilter(clip)
-          ctx.drawImage(el, box.x, box.y, box.w, box.h)
-          ctx.restore()
+          compositeMedia(ctx, clip, el, box, time, W, H)
         }
       } else if (clip.type === 'image' && clip.mediaId) {
         const el = sources.getImage(clip.mediaId)
         if (el && el.complete && el.naturalWidth) {
           const box = containBox(el.naturalWidth, el.naturalHeight, W, H)
-          ctx.save()
-          applyClipTransform(ctx, clip, time, W, H)
-          applyTransition(ctx, transitionModifier(clip, time), W, H)
-          ctx.filter = effectiveFilter(clip)
-          ctx.drawImage(el, box.x, box.y, box.w, box.h)
-          ctx.restore()
+          compositeMedia(ctx, clip, el, box, time, W, H)
         }
       }
     }

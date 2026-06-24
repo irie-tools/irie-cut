@@ -15,6 +15,7 @@ import {
 } from '#/lib/keyframes'
 import { FILTER_PRESETS } from '#/lib/filters'
 import { DEFAULT_ADJUST, isNeutralAdjust } from '#/lib/adjust'
+import { BLEND_MODES, blendOp } from '#/lib/blend'
 import { BEAT_ROLES, roleLabel } from '#/lib/beats'
 import { TRANSITIONS } from '#/lib/transitions'
 import {
@@ -150,6 +151,26 @@ function ClipProps({ clip }: { clip: Clip }) {
       )}
 
       {(clip.type === 'video' || clip.type === 'image') && <AdjustControls clip={clip} />}
+
+      {(clip.type === 'video' || clip.type === 'image') && (
+        <Row label="Blend mode">
+          <Select
+            value={blendOp(clip.blend)}
+            onValueChange={(v) => updateClip(clip.id, { blend: v === 'source-over' ? undefined : (v ?? undefined) })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {BLEND_MODES.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Row>
+      )}
 
       {clip.type !== 'audio' && <TransitionControls clip={clip} />}
 
