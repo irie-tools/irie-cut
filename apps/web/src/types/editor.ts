@@ -99,6 +99,13 @@ export interface Clip {
   trimEnd: number
   /** 0..1 audio gain for video/audio clips. */
   volume: number
+  /** Volume automation: time-sorted {t (clip-local seconds), value 0..1}. Overrides `volume`. */
+  volumeKeyframes?: { t: number; value: number }[]
+  /** Dedicated audio fade in/out durations (seconds), independent of transitions. */
+  fadeIn?: number
+  fadeOut?: number
+  /** Per-clip Web Audio effects chain (see lib/audio-fx). */
+  audioFx?: { eqLow: number; eqMid: number; eqHigh: number; compressor: number; reverb: number; highpass: number }
   /** Color-grade filter preset id for video/image clips (see lib/filters). */
   filter?: string
   /** Per-clip color adjustments, composed after the preset (see lib/adjust). */

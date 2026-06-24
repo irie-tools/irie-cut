@@ -413,7 +413,11 @@ function ClipView({
   const asset = useEditorStore((s) => (clip.mediaId ? s.media.find((m) => m.id === clip.mediaId) : undefined))
   const peaks = useWaveform(clip.type === 'audio' ? clip.mediaId : undefined)
   const thumb = asset?.thumbnail
-  const kfTimes = keyframeTimes(clip)
+  const kfTimes = Array.from(
+    new Set([...keyframeTimes(clip), ...(clip.volumeKeyframes ?? []).map((k) => k.t)]),
+  ).sort((a, b) => a - b)
+  const fadeInW = (clip.fadeIn ?? 0) > 0 ? Math.min(width, ((clip.fadeIn ?? 0) / clip.duration) * width) : 0
+  const fadeOutW = (clip.fadeOut ?? 0) > 0 ? Math.min(width, ((clip.fadeOut ?? 0) / clip.duration) * width) : 0
 
   function beginDrag(e: React.PointerEvent, kind: 'move' | 'trim-l' | 'trim-r') {
     e.preventDefault()
@@ -535,6 +539,19 @@ function ClipView({
           </span>
         )}
       </div>
+      {/* Audio fade ramps */}
+      {fadeInW > 0 && (
+        <div
+          className="pointer-events-none absolute inset-y-0 left-0"
+          style={{ width: fadeInW, background: 'linear-gradient(to top right, rgba(0,0,0,0.6), transparent 65%)' }}
+        />
+      )}
+      {fadeOutW > 0 && (
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0"
+          style={{ width: fadeOutW, background: 'linear-gradient(to top left, rgba(0,0,0,0.6), transparent 65%)' }}
+        />
+      )}
       {/* Trim handles */}
       <div
         onPointerDown={(e) => beginDrag(e, 'trim-l')}

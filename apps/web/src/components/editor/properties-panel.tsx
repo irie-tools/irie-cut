@@ -19,6 +19,7 @@ import { BLEND_MODES, blendOp } from '#/lib/blend'
 import { DEFAULT_MASK, MASK_SHAPES } from '#/lib/mask'
 import { DEFAULT_CHROMA } from '#/lib/chroma'
 import { FONT_OPTIONS, normalizeFont } from '#/lib/fonts'
+import { clipVolumeAt } from '#/lib/audio'
 import { BEAT_ROLES, roleLabel } from '#/lib/beats'
 import { TRANSITIONS } from '#/lib/transitions'
 import {
@@ -100,17 +101,7 @@ function ClipProps({ clip }: { clip: Clip }) {
         </Select>
       </Row>
 
-      {(clip.type === 'video' || clip.type === 'audio') && (
-        <Row label={`Volume · ${Math.round(clip.volume * 100)}%`}>
-          <Slider
-            value={[clip.volume]}
-            min={0}
-            max={1}
-            step={0.01}
-            onValueChange={(v) => updateClip(clip.id, { volume: sv(v) }, `vol:${clip.id}`)}
-          />
-        </Row>
-      )}
+      {(clip.type === 'video' || clip.type === 'audio') && <VolumeControls clip={clip} />}
 
       {(clip.type === 'video' || clip.type === 'audio') && (
         <Row label={`Speed · ${(clip.speed ?? 1).toFixed(2)}×`}>
@@ -390,6 +381,74 @@ function AdjustControls({ clip }: { clip: Clip }) {
           />
         </Row>
       ))}
+    </>
+  )
+}
+
+function VolumeControls({ clip }: { clip: Clip }) {
+  const updateClip = useEditorStore((s) => s.updateClip)
+  const setVolumeKeyframe = useEditorStore((s) => s.setVolumeKeyframe)
+  const removeVolumeKeyframe = useEditorStore((s) => s.removeVolumeKeyframe)
+  const clearVolumeKeyframes = useEditorStore((s) => s.clearVolumeKeyframes)
+  const currentTime = useEditorStore((s) => s.currentTime)
+  const fps = useEditorStore((s) => s.project?.fps ?? 30)
+
+  const keys = clip.volumeKeyframes
+  const keyed = !!keys && keys.length > 0
+  const localT = currentTime - clip.start
+  const insideClip = localT >= -1e-6 && localT <= clip.duration + 1e-6
+  const writeT = Math.max(0, Math.min(clip.duration, localT))
+  const frameTol = 0.5 / fps + 1e-6
+  const onKfTime = keyed && insideClip ? keyframeAtTime(keys, localT, frameTol) : null
+  const display = keyed ? clipVolumeAt(clip, currentTime) : clip.volume
+
+  function onSlide(v: number | readonly number[]) {
+    const value = sv(v)
+    if (keyed) {
+      if (insideClip) setVolumeKeyframe(clip.id, writeT, value, `vkf:${clip.id}`)
+    } else {
+      updateClip(clip.id, { volume: value }, `vol:${clip.id}`)
+    }
+  }
+
+  function toggleDiamond() {
+    if (!insideClip) return
+    if (!keyed) setVolumeKeyframe(clip.id, writeT, clip.volume)
+    else if (onKfTime != null) removeVolumeKeyframe(clip.id, onKfTime)
+    else setVolumeKeyframe(clip.id, writeT, display)
+  }
+
+  return (
+    <>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">Volume · {Math.round(display * 100)}%</Label>
+          <div className="flex items-center gap-1">
+            {keyed && (
+              <button onClick={() => clearVolumeKeyframes(clip.id)} className="text-[10px] text-muted-foreground hover:text-foreground" title="Clear volume automation">
+                Clear
+              </button>
+            )}
+            <button
+              onClick={toggleDiamond}
+              disabled={!insideClip}
+              title={keyed ? (onKfTime != null ? 'Remove volume keyframe' : 'Add volume keyframe') : 'Automate volume at playhead'}
+              className={cn('grid size-5 place-items-center rounded transition-colors disabled:opacity-30', keyed ? 'text-primary hover:bg-primary/10' : 'text-muted-foreground hover:text-foreground')}
+            >
+              <span className={cn('size-2 rotate-45 border', onKfTime != null ? 'border-primary bg-primary' : keyed ? 'border-primary' : 'border-current')} />
+            </button>
+          </div>
+        </div>
+        <Slider value={[Math.max(0, Math.min(1, display))]} min={0} max={1} step={0.01} disabled={keyed && !insideClip} onValueChange={onSlide} />
+      </div>
+      <div className="flex gap-3">
+        <Row label={`Fade in · ${(clip.fadeIn ?? 0).toFixed(1)}s`}>
+          <Slider value={[clip.fadeIn ?? 0]} min={0} max={Math.max(0.5, clip.duration / 2)} step={0.1} onValueChange={(v) => updateClip(clip.id, { fadeIn: sv(v) }, `fin:${clip.id}`)} />
+        </Row>
+        <Row label={`Fade out · ${(clip.fadeOut ?? 0).toFixed(1)}s`}>
+          <Slider value={[clip.fadeOut ?? 0]} min={0} max={Math.max(0.5, clip.duration / 2)} step={0.1} onValueChange={(v) => updateClip(clip.id, { fadeOut: sv(v) }, `fout:${clip.id}`)} />
+        </Row>
+      </div>
     </>
   )
 }

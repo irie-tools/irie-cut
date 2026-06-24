@@ -99,6 +99,9 @@ interface EditorState {
   removeKeyframe: (clipId: string, prop: KeyframeProp, t: number) => void
   clearKeyframes: (clipId: string, prop?: KeyframeProp) => void
   applyTextPreset: (clipId: string, preset: 'none' | 'fade' | 'pop' | 'slide' | 'typewriter') => void
+  setVolumeKeyframe: (clipId: string, t: number, value: number, coalesceKey?: string) => void
+  removeVolumeKeyframe: (clipId: string, t: number) => void
+  clearVolumeKeyframes: (clipId: string) => void
   moveClip: (clipId: string, trackId: string, start: number) => void
   splitAtPlayhead: () => void
   deleteClip: (clipId: string) => void
@@ -530,6 +533,45 @@ export const useEditorStore = create<EditorState>((set, get) => {
             delete keyframes[prop]
             return { ...c, keyframes: Object.keys(keyframes).length ? keyframes : undefined }
           }),
+        })),
+      }))
+    },
+
+    setVolumeKeyframe(clipId, t, value, coalesceKey) {
+      mutate(
+        (p) => ({
+          ...p,
+          tracks: p.tracks.map((tr) => ({
+            ...tr,
+            clips: tr.clips.map((c) =>
+              c.id === clipId ? { ...c, volumeKeyframes: upsertKeyframe(c.volumeKeyframes, t, value) } : c,
+            ),
+          })),
+        }),
+        coalesceKey,
+      )
+    },
+
+    removeVolumeKeyframe(clipId, t) {
+      mutate((p) => ({
+        ...p,
+        tracks: p.tracks.map((tr) => ({
+          ...tr,
+          clips: tr.clips.map((c) => {
+            if (c.id !== clipId || !c.volumeKeyframes) return c
+            const left = removeKeyframeAt(c.volumeKeyframes, t)
+            return { ...c, volumeKeyframes: left.length ? left : undefined }
+          }),
+        })),
+      }))
+    },
+
+    clearVolumeKeyframes(clipId) {
+      mutate((p) => ({
+        ...p,
+        tracks: p.tracks.map((tr) => ({
+          ...tr,
+          clips: tr.clips.map((c) => (c.id === clipId ? { ...c, volumeKeyframes: undefined } : c)),
         })),
       }))
     },
