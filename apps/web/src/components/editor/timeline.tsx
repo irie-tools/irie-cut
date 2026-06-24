@@ -26,6 +26,7 @@ import type { Clip, Track } from '#/types/editor'
 import { cn } from '#/lib/utils'
 import { roleLabel } from '#/lib/beats'
 import { Slider } from '#/components/ui/slider'
+import { useWaveform } from '#/hooks/use-waveform'
 
 export function Timeline() {
   const project = useEditorStore((s) => s.project)
@@ -381,6 +382,9 @@ function ClipView({
   const left = clip.start * pps
   const width = Math.max(8, clip.duration * pps)
   const ClipIcon = clip.type === 'image' ? ImageIcon : TRACK_ICON[clip.type === 'text' ? 'text' : clip.type === 'audio' ? 'audio' : 'video']
+  const asset = useEditorStore((s) => (clip.mediaId ? s.media.find((m) => m.id === clip.mediaId) : undefined))
+  const peaks = useWaveform(clip.type === 'audio' ? clip.mediaId : undefined)
+  const thumb = asset?.thumbnail
 
   function beginDrag(e: React.PointerEvent, kind: 'move' | 'trim-l' | 'trim-r') {
     e.preventDefault()
@@ -470,13 +474,27 @@ function ClipView({
       )}
       style={{ left, width }}
     >
-      <div className="flex h-full items-center gap-1 px-2">
+      {/* Media background: filmstrip for video, cover for image */}
+      {(clip.type === 'video' || clip.type === 'image') && thumb && (
+        <div
+          className="pointer-events-none absolute inset-0 opacity-45"
+          style={{
+            backgroundImage: `url(${thumb})`,
+            backgroundRepeat: clip.type === 'video' ? 'repeat-x' : 'no-repeat',
+            backgroundSize: clip.type === 'video' ? 'auto 100%' : 'cover',
+            backgroundPosition: 'center',
+          }}
+        />
+      )}
+      {clip.type === 'audio' && peaks && <Waveform peaks={slicePeaks(peaks, clip, asset?.duration)} />}
+
+      <div className="relative flex h-full items-center gap-1 bg-gradient-to-r from-black/55 via-black/20 to-transparent px-2">
         <ClipIcon className="size-3 shrink-0 opacity-80" />
-        <span className="truncate text-[11px] font-medium">
+        <span className="truncate text-[11px] font-medium drop-shadow">
           {clip.type === 'text' ? clip.text?.content || 'Text' : clip.name}
         </span>
         {roleLabel(clip.role) && (
-          <span className="ml-auto shrink-0 rounded bg-black/30 px-1 text-[9px] font-semibold uppercase tracking-wide">
+          <span className="ml-auto shrink-0 rounded bg-black/40 px-1 text-[9px] font-semibold uppercase tracking-wide">
             {roleLabel(clip.role)}
           </span>
         )}
@@ -491,6 +509,31 @@ function ClipView({
         className="absolute right-0 top-0 h-full w-2 cursor-ew-resize bg-white/0 hover:bg-white/30"
       />
     </div>
+  )
+}
+
+/** Slice full-source peaks down to the clip's trimmed region. */
+function slicePeaks(peaks: number[], clip: Clip, sourceDuration: number | undefined): number[] {
+  if (!sourceDuration) return peaks
+  const a = Math.max(0, Math.floor((clip.trimStart / sourceDuration) * peaks.length))
+  const b = Math.min(peaks.length, Math.ceil((clip.trimEnd / sourceDuration) * peaks.length))
+  const sliced = peaks.slice(a, b)
+  return sliced.length ? sliced : peaks
+}
+
+function Waveform({ peaks }: { peaks: number[] }) {
+  const n = peaks.length
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 h-full w-full text-white/45"
+      viewBox={`0 0 ${n} 100`}
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      {peaks.map((p, i) => (
+        <rect key={i} x={i + 0.1} width={0.8} y={50 - p * 46} height={Math.max(1, p * 92)} fill="currentColor" />
+      ))}
+    </svg>
   )
 }
 
