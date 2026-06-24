@@ -1,6 +1,18 @@
 # Irie Cut — Promo Pipeline Spec (Pam-aware)
 
-_Spec date: 2026-06-24. Status: PROPOSED — for Corey's review before any build. Nothing here is built yet._
+_Spec date: 2026-06-24._
+
+> **Build status (2026-06-24):** the pipeline spine is **BUILT & VERIFIED** end-to-end.
+> Shipped (Irie Cut): **1.1 Pam import** (song → captioned Ken-Burns 9:16 promo), **1.2 caption
+> styling** (4 track presets), **1.3 one-click multi-size export** (verified 1080×1920 + 1080×1080),
+> **Tier 2 beat-pulse** (cover punches on detected beats — 10→170 keyframes), **Tier 3 post-kit**
+> (caption + hashtags from the Pam campaign + poster). Shipped (Pam repo, additive, not deployed):
+> the **Send to Irie Cut** writer (`packageForIrieCut` + route + Studio button) producing the
+> `.iriepromo.json`. Verified: sample bundle → promo, multi-size export, post-kit, beat-pulse; 26
+> Irie Cut tests + build clean; Pam changes type/lint-clean, zero test regression.
+> **Queued next (spec below):** 1.4 promo-template gallery (the import already assembles a full
+> starter promo), 1.2-v2 word-level karaoke captions (needs Whisper word timings), 2.3 silence
+> removal (talking-head), and the Tier-3 publish-to-Bandstand/Vision targets.
 
 ## Context: Pam changes the target
 
