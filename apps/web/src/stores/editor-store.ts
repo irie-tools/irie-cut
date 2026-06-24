@@ -23,6 +23,7 @@ import {
 import * as storage from '#/lib/storage'
 import { detectMediaType, probeMedia } from '#/lib/media'
 import { getBeats } from '#/lib/beat-detect'
+import { planBeatCut, clipsFromSegments, type BeatCutSource } from '#/lib/beat-cut'
 import { CAPTION_STYLES } from '#/lib/caption-styles'
 import type { Template } from '#/lib/templates'
 
@@ -122,6 +123,7 @@ interface EditorState {
   clearMarkers: () => void
   detectBeats: (clipId: string) => Promise<number>
   pulseToBeats: (coverClipId: string) => Promise<number>
+  beatCutToBeats: (clipIds: string[], k?: number) => Promise<number>
   duplicateClip: (clipId: string) => void
   selectClip: (clipId: string | null, additive?: boolean) => void
   copySelection: () => void
@@ -822,6 +824,64 @@ export const useEditorStore = create<EditorState>((set, get) => {
         })),
       }))
       return beats.length
+    },
+
+    async beatCutToBeats(clipIds, k = 2) {
+      const project = get().project
+      if (!project) return 0
+      // Selected image/video clips, in timeline order.
+      const founds = clipIds
+        .map((id) => findClip(project, id))
+        .filter(
+          (f): f is { track: Track; clip: Clip } =>
+            !!f && (f.clip.type === 'image' || f.clip.type === 'video') && !!f.clip.mediaId,
+        )
+        .sort((a, b) => a.clip.start - b.clip.start)
+      if (!founds.length) return 0
+
+      const song = project.tracks.flatMap((t) => t.clips).find((c) => c.type === 'audio' && c.mediaId)
+      if (!song?.mediaId) return 0
+      const blob = await storage.getMediaBlob(song.mediaId)
+      if (!blob) return 0
+      const raw = await getBeats(song.mediaId, blob)
+
+      const songStart = song.start
+      const songSpan = song.duration
+      // Map song source-time onsets into timeline time, then make them song-relative.
+      const beats = raw
+        .filter((b) => b >= song.trimStart && b <= song.trimEnd)
+        .map((b) => song.start + (b - song.trimStart) - songStart)
+
+      const sources: BeatCutSource[] = founds.map((f) => ({
+        mediaId: f.clip.mediaId as string,
+        type: f.clip.type as 'image' | 'video',
+        sourceDuration: f.clip.type === 'video' ? f.clip.trimEnd - f.clip.trimStart : undefined,
+      }))
+      const segments = planBeatCut({ beats, songDuration: songSpan, sourceCount: sources.length, k })
+      if (!segments.length) return 0
+
+      const trackId = founds[0].track.id
+      const newClips = clipsFromSegments({ segments, sources, trackId, makeId: uid }).map((c) => ({
+        ...c,
+        start: round3(c.start + songStart),
+      }))
+      const removeIds = new Set(founds.map((f) => f.clip.id))
+
+      mutate((p) => ({
+        ...p,
+        tracks: p.tracks.map((t) =>
+          t.id !== trackId
+            ? { ...t, clips: t.clips.filter((c) => !removeIds.has(c.id)) }
+            : {
+                ...t,
+                clips: [...t.clips.filter((c) => !removeIds.has(c.id)), ...newClips].sort(
+                  (a, b) => a.start - b.start,
+                ),
+              },
+        ),
+      }))
+      set({ selectedClipIds: newClips.map((c) => c.id), selectedClipId: newClips[0]?.id ?? null })
+      return segments.length
     },
 
     addMarker(time) {
