@@ -1,9 +1,16 @@
 # Irie Cut
 
-**A free, open, in-browser media studio.** Import clips, cut and layer them on a
-multi-track timeline, grade them, add titles and captions, score the cut, and
-export an MP4 — with no account, no watermark, and nothing uploaded. Your media
-lives in the browser (IndexedDB) and every frame is rendered on-device.
+**The cutting room of the Irie ecosystem.** A free, open, in-browser video editor that
+takes the work made upstream — cover art from **Pam**, cinematic clips from **Video
+Studio** — and cuts it to the beat: a music-locked promo, captioned and sized for every
+platform. Import clips, cut and layer them on a multi-track timeline, grade them, add
+titles and captions, score the cut, and export an MP4 — no account, no watermark, nothing
+uploaded. Your media lives in the browser (IndexedDB) and every frame is rendered
+on-device.
+
+It wears the **Irie Ecosystem Design Standard** (warm near-black canvas, single gold
+accent, Cormorant Garamond + DM Sans) so it reads as one of Corey's products, not a forked
+tool — see `ECOSYSTEM-RESKIN-SPEC.md`.
 
 Live: **https://irie-cut.vercel.app**
 
