@@ -7,6 +7,12 @@ import { Textarea } from '#/components/ui/textarea'
 import { Slider } from '#/components/ui/slider'
 import { ScrollArea } from '#/components/ui/scroll-area'
 import { cn } from '#/lib/utils'
+import {
+  transformAt,
+  keyframeAtTime,
+  hasKeyframes,
+  type KeyframeProp,
+} from '#/lib/keyframes'
 import { FILTER_PRESETS } from '#/lib/filters'
 import { BEAT_ROLES, roleLabel } from '#/lib/beats'
 import { TRANSITIONS } from '#/lib/transitions'
@@ -153,32 +159,162 @@ function ClipProps({ clip }: { clip: Clip }) {
 
 const DEFAULT_TRANSFORM = { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 }
 
+interface TransformRowSpec {
+  prop: KeyframeProp
+  label: string
+  min: number
+  max: number
+  step: number
+  fmt: (v: number) => string
+}
+
+const TRANSFORM_ROWS: TransformRowSpec[] = [
+  { prop: 'scale', label: 'Scale', min: 0.1, max: 3, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
+  { prop: 'opacity', label: 'Opacity', min: 0, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
+  { prop: 'rotation', label: 'Rotation', min: -180, max: 180, step: 1, fmt: (v) => `${Math.round(v)}°` },
+  { prop: 'x', label: 'X', min: -1, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
+  { prop: 'y', label: 'Y', min: -1, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
+]
+
 function TransformControls({ clip }: { clip: Clip }) {
-  const updateClip = useEditorStore((s) => s.updateClip)
-  const tr = clip.transform ?? DEFAULT_TRANSFORM
-  const set = (patch: Partial<typeof DEFAULT_TRANSFORM>, key: string) =>
-    updateClip(clip.id, { transform: { ...tr, ...patch } }, `${key}:${clip.id}`)
+  const clearKeyframes = useEditorStore((s) => s.clearKeyframes)
+  // Subscribe to the playhead so keyframe state + interpolated slider values
+  // follow the playhead as it scrubs/plays.
+  const currentTime = useEditorStore((s) => s.currentTime)
+  const fps = useEditorStore((s) => s.project?.fps ?? 30)
+
+  const localT = currentTime - clip.start
+  const insideClip = localT >= -1e-6 && localT <= clip.duration + 1e-6
+  const animated = transformAt(clip, Math.max(0, Math.min(clip.duration, localT)))
+  const anyKeys = hasKeyframes(clip)
 
   return (
     <>
-      <Row label={`Scale · ${Math.round(tr.scale * 100)}%`}>
-        <Slider value={[tr.scale]} min={0.1} max={3} step={0.01} onValueChange={(v) => set({ scale: sv(v) }, 'sc')} />
-      </Row>
-      <Row label={`Opacity · ${Math.round(tr.opacity * 100)}%`}>
-        <Slider value={[tr.opacity]} min={0} max={1} step={0.01} onValueChange={(v) => set({ opacity: sv(v) }, 'op')} />
-      </Row>
-      <Row label={`Rotation · ${Math.round(tr.rotation)}°`}>
-        <Slider value={[tr.rotation]} min={-180} max={180} step={1} onValueChange={(v) => set({ rotation: sv(v) }, 'rot')} />
-      </Row>
-      <div className="flex gap-3">
-        <Row label={`X · ${Math.round(tr.x * 100)}%`}>
-          <Slider value={[tr.x]} min={-1} max={1} step={0.01} onValueChange={(v) => set({ x: sv(v) }, 'px')} />
-        </Row>
-        <Row label={`Y · ${Math.round(tr.y * 100)}%`}>
-          <Slider value={[tr.y]} min={-1} max={1} step={0.01} onValueChange={(v) => set({ y: sv(v) }, 'py')} />
-        </Row>
+      <div className="flex items-center justify-between pt-1">
+        <Label className="text-xs font-semibold text-foreground">Transform</Label>
+        {anyKeys && (
+          <button
+            onClick={() => clearKeyframes(clip.id)}
+            className="text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            title="Remove all keyframes (revert to static)"
+          >
+            Clear motion
+          </button>
+        )}
       </div>
+      {!insideClip && anyKeys && (
+        <p className="-mt-2 text-[10px] text-muted-foreground">
+          Playhead is outside this clip — move it over the clip to edit keyframes.
+        </p>
+      )}
+      {TRANSFORM_ROWS.map((row) => (
+        <KeyframeRow
+          key={row.prop}
+          clip={clip}
+          spec={row}
+          localT={localT}
+          insideClip={insideClip}
+          fps={fps}
+          animatedValue={animated[row.prop]}
+        />
+      ))}
     </>
+  )
+}
+
+function KeyframeRow({
+  clip,
+  spec,
+  localT,
+  insideClip,
+  fps,
+  animatedValue,
+}: {
+  clip: Clip
+  spec: TransformRowSpec
+  localT: number
+  insideClip: boolean
+  fps: number
+  animatedValue: number
+}) {
+  const updateClip = useEditorStore((s) => s.updateClip)
+  const setKeyframe = useEditorStore((s) => s.setKeyframe)
+  const removeKeyframe = useEditorStore((s) => s.removeKeyframe)
+
+  const tr = clip.transform ?? DEFAULT_TRANSFORM
+  const keys = clip.keyframes?.[spec.prop]
+  const keyed = !!keys && keys.length > 0
+  const writeT = Math.max(0, Math.min(clip.duration, localT))
+  const frameTol = 0.5 / fps + 1e-6
+  const onKfTime = keyed && insideClip ? keyframeAtTime(keys, localT, frameTol) : null
+  const onKf = onKfTime != null
+
+  // Keyed → show the interpolated value at the playhead; static → the stored value.
+  const displayValue = keyed ? animatedValue : tr[spec.prop]
+  const sliderValue = Math.max(spec.min, Math.min(spec.max, displayValue))
+  // Slider is live unless animating from outside the clip span (no valid time to write).
+  const sliderDisabled = keyed && !insideClip
+
+  function onSlide(v: number | readonly number[]) {
+    const value = sv(v)
+    if (keyed) {
+      if (!insideClip) return
+      setKeyframe(clip.id, spec.prop, writeT, value, `kf:${spec.prop}:${clip.id}`)
+    } else {
+      updateClip(clip.id, { transform: { ...tr, [spec.prop]: value } }, `${spec.prop}:${clip.id}`)
+    }
+  }
+
+  function toggleDiamond() {
+    if (!insideClip) return
+    if (!keyed) {
+      // First keyframe: pin the current static value at the playhead.
+      setKeyframe(clip.id, spec.prop, writeT, tr[spec.prop])
+    } else if (onKfTime != null) {
+      removeKeyframe(clip.id, spec.prop, onKfTime)
+    } else {
+      setKeyframe(clip.id, spec.prop, writeT, displayValue)
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs text-muted-foreground">
+          {spec.label} · {spec.fmt(displayValue)}
+        </Label>
+        <button
+          onClick={toggleDiamond}
+          disabled={!insideClip}
+          title={
+            keyed
+              ? onKf
+                ? 'Remove keyframe at playhead'
+                : 'Add keyframe at playhead'
+              : 'Animate — add first keyframe at playhead'
+          }
+          className={cn(
+            'grid size-5 place-items-center rounded transition-colors disabled:opacity-30',
+            keyed ? 'text-primary hover:bg-primary/10' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <span
+            className={cn(
+              'size-2 rotate-45 border',
+              onKf ? 'border-primary bg-primary' : keyed ? 'border-primary' : 'border-current',
+            )}
+          />
+        </button>
+      </div>
+      <Slider
+        value={[sliderValue]}
+        min={spec.min}
+        max={spec.max}
+        step={spec.step}
+        disabled={sliderDisabled}
+        onValueChange={onSlide}
+      />
+    </div>
   )
 }
 
