@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, Clapperboard } from 'lucide-react'
+import { ArrowLeft, Clapperboard, Undo2, Redo2 } from 'lucide-react'
 import {
   ResizableHandle,
   ResizablePanel,
@@ -35,6 +35,18 @@ export function Editor({ projectId }: { projectId: string }) {
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
         return
       const s = useEditorStore.getState()
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault()
+        if (e.shiftKey) s.redo()
+        else s.undo()
+        return
+      }
+      if (mod && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault()
+        s.redo()
+        return
+      }
       if (e.code === 'Space') {
         e.preventDefault()
         s.togglePlay()
@@ -87,6 +99,9 @@ export function Editor({ projectId }: { projectId: string }) {
           </Link>
           <Clapperboard className="size-5 text-primary" />
           <ProjectMenu />
+          <div className="ml-1 flex items-center">
+            <HistoryButtons />
+          </div>
         </div>
         <ExportButton />
       </header>
@@ -113,5 +128,34 @@ export function Editor({ projectId }: { projectId: string }) {
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
+  )
+}
+
+function HistoryButtons() {
+  const canUndo = useEditorStore((s) => s.past.length > 0)
+  const canRedo = useEditorStore((s) => s.future.length > 0)
+  const undo = useEditorStore((s) => s.undo)
+  const redo = useEditorStore((s) => s.redo)
+  return (
+    <>
+      <button
+        onClick={undo}
+        disabled={!canUndo}
+        title="Undo (⌘Z)"
+        aria-label="Undo"
+        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+      >
+        <Undo2 className="size-4" />
+      </button>
+      <button
+        onClick={redo}
+        disabled={!canRedo}
+        title="Redo (⌘⇧Z)"
+        aria-label="Redo"
+        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+      >
+        <Redo2 className="size-4" />
+      </button>
+    </>
   )
 }

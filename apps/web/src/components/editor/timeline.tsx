@@ -250,25 +250,30 @@ function ClipView({
       trimEnd: clip.trimEnd,
     }
 
+    const ck = `${kind}:${clip.id}`
     const move = (ev: PointerEvent) => {
       const ds = (ev.clientX - startX) / pps
       const s = useEditorStore.getState()
       if (kind === 'move') {
-        s.updateClip(clip.id, { start: Math.max(0, o.start + ds) })
+        s.updateClip(clip.id, { start: Math.max(0, o.start + ds) }, ck)
       } else if (kind === 'trim-l') {
         const maxLeft = o.duration - 0.1
         const delta = Math.min(Math.max(ds, -o.trimStart), maxLeft)
-        s.updateClip(clip.id, {
-          start: Math.max(0, o.start + delta),
-          duration: o.duration - delta,
-          trimStart: o.trimStart + delta,
-        })
+        s.updateClip(
+          clip.id,
+          {
+            start: Math.max(0, o.start + delta),
+            duration: o.duration - delta,
+            trimStart: o.trimStart + delta,
+          },
+          ck,
+        )
       } else {
         let newDur = Math.max(0.1, o.duration + ds)
         if (Number.isFinite(sourceMax)) {
           newDur = Math.min(newDur, sourceMax - o.trimStart)
         }
-        s.updateClip(clip.id, { duration: newDur, trimEnd: o.trimStart + newDur })
+        s.updateClip(clip.id, { duration: newDur, trimEnd: o.trimStart + newDur }, ck)
       }
     }
     const up = () => {

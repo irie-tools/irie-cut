@@ -95,7 +95,7 @@ function ClipProps({ clip }: { clip: Clip }) {
             min={0}
             max={1}
             step={0.01}
-            onValueChange={(v) => updateClip(clip.id, { volume: sv(v) })}
+            onValueChange={(v) => updateClip(clip.id, { volume: sv(v) }, `vol:${clip.id}`)}
           />
         </Row>
       )}
@@ -136,8 +136,8 @@ function ClipProps({ clip }: { clip: Clip }) {
 
 function TextProps({ clip, text }: { clip: Clip; text: TextProperties }) {
   const updateClip = useEditorStore((s) => s.updateClip)
-  const set = (patch: Partial<TextProperties>) =>
-    updateClip(clip.id, { text: { ...text, ...patch } })
+  const set = (patch: Partial<TextProperties>, coalesceKey?: string) =>
+    updateClip(clip.id, { text: { ...text, ...patch } }, coalesceKey)
 
   return (
     <>
@@ -145,7 +145,7 @@ function TextProps({ clip, text }: { clip: Clip; text: TextProperties }) {
         <Textarea
           value={text.content}
           rows={2}
-          onChange={(e) => set({ content: e.target.value })}
+          onChange={(e) => set({ content: e.target.value }, `txt:${clip.id}`)}
         />
       </Row>
       <Row label={`Font size · ${text.fontSize}px`}>
@@ -154,7 +154,7 @@ function TextProps({ clip, text }: { clip: Clip; text: TextProperties }) {
           min={12}
           max={240}
           step={1}
-          onValueChange={(v) => set({ fontSize: sv(v) })}
+          onValueChange={(v) => set({ fontSize: sv(v) }, `fs:${clip.id}`)}
         />
       </Row>
       <div className="flex gap-3">
@@ -162,7 +162,7 @@ function TextProps({ clip, text }: { clip: Clip; text: TextProperties }) {
           <input
             type="color"
             value={text.color}
-            onChange={(e) => set({ color: e.target.value })}
+            onChange={(e) => set({ color: e.target.value }, `col:${clip.id}`)}
             className="h-9 w-full cursor-pointer rounded-md border border-border bg-background"
           />
         </Row>
@@ -171,7 +171,7 @@ function TextProps({ clip, text }: { clip: Clip; text: TextProperties }) {
             <input
               type="color"
               value={text.background ?? '#000000'}
-              onChange={(e) => set({ background: e.target.value })}
+              onChange={(e) => set({ background: e.target.value }, `bg:${clip.id}`)}
               className="h-9 w-full cursor-pointer rounded-md border border-border bg-background"
             />
             <button
@@ -204,10 +204,10 @@ function TextProps({ clip, text }: { clip: Clip; text: TextProperties }) {
         </div>
       </Row>
       <Row label={`Horizontal · ${Math.round(text.x * 100)}%`}>
-        <Slider value={[text.x]} min={0} max={1} step={0.01} onValueChange={(v) => set({ x: sv(v) })} />
+        <Slider value={[text.x]} min={0} max={1} step={0.01} onValueChange={(v) => set({ x: sv(v) }, `tx:${clip.id}`)} />
       </Row>
       <Row label={`Vertical · ${Math.round(text.y * 100)}%`}>
-        <Slider value={[text.y]} min={0} max={1} step={0.01} onValueChange={(v) => set({ y: sv(v) })} />
+        <Slider value={[text.y]} min={0} max={1} step={0.01} onValueChange={(v) => set({ y: sv(v) }, `ty:${clip.id}`)} />
       </Row>
     </>
   )
@@ -228,7 +228,7 @@ function ProjectProps() {
         <input
           type="color"
           value={project.background}
-          onChange={(e) => updateProject({ background: e.target.value })}
+          onChange={(e) => updateProject({ background: e.target.value }, 'project-bg')}
           className="h-9 w-full cursor-pointer rounded-md border border-border bg-background"
         />
       </Row>

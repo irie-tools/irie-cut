@@ -60,9 +60,15 @@ interface EditorState {
   loading: boolean
   importing: boolean
 
+  /** Undo/redo history of project snapshots. */
+  past: Project[]
+  future: Project[]
+
   loadProject: (id: string) => Promise<void>
   closeProject: () => void
-  updateProject: (patch: Partial<Project>) => void
+  updateProject: (patch: Partial<Project>, coalesceKey?: string) => void
+  undo: () => void
+  redo: () => void
 
   importFiles: (files: FileList | File[]) => Promise<void>
   removeMedia: (id: string) => Promise<void>
@@ -72,7 +78,7 @@ interface EditorState {
   addClipFromMedia: (mediaId: string, atTime?: number) => void
   addTextClip: () => void
   applyTemplate: (template: Template) => void
-  updateClip: (clipId: string, patch: Partial<Clip>) => void
+  updateClip: (clipId: string, patch: Partial<Clip>, coalesceKey?: string) => void
   moveClip: (clipId: string, trackId: string, start: number) => void
   splitAtPlayhead: () => void
   deleteClip: (clipId: string) => void
@@ -86,18 +92,38 @@ interface EditorState {
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null
+const HISTORY_LIMIT = 60
+let lastCoalesceKey: string | null = null
+let lastMutateAt = 0
 
 export const useEditorStore = create<EditorState>((set, get) => {
-  /** Apply a transform to the project, bump updatedAt, and schedule a save. */
-  function mutate(fn: (p: Project) => Project) {
+  function schedulePersist(next: Project) {
+    if (persistTimer) clearTimeout(persistTimer)
+    persistTimer = setTimeout(() => void storage.saveProject(next), 400)
+  }
+
+  /**
+   * Apply a transform to the project, push the previous state onto the undo
+   * stack, and schedule a save. Consecutive mutations sharing a `coalesceKey`
+   * within a short window collapse into one history entry (so a drag or a
+   * slider sweep is a single undo, not hundreds).
+   */
+  function mutate(fn: (p: Project) => Project, coalesceKey?: string) {
     const current = get().project
     if (!current) return
     const next = { ...fn(current), updatedAt: Date.now() }
-    set({ project: next })
-    if (persistTimer) clearTimeout(persistTimer)
-    persistTimer = setTimeout(() => {
-      void storage.saveProject(next)
-    }, 400)
+    const now = Date.now()
+    const coalesce = coalesceKey != null && coalesceKey === lastCoalesceKey && now - lastMutateAt < 900
+    lastCoalesceKey = coalesceKey ?? null
+    lastMutateAt = now
+
+    if (coalesce) {
+      set({ project: next })
+    } else {
+      const past = [...get().past, current].slice(-HISTORY_LIMIT)
+      set({ project: next, past, future: [] })
+    }
+    schedulePersist(next)
   }
 
   function findClip(p: Project, clipId: string): { track: Track; clip: Clip } | null {
@@ -127,6 +153,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
     zoom: 1,
     loading: false,
     importing: false,
+    past: [],
+    future: [],
 
     async loadProject(id) {
       set({ loading: true })
@@ -151,7 +179,27 @@ export const useEditorStore = create<EditorState>((set, get) => {
         currentTime: 0,
         isPlaying: false,
         selectedClipId: null,
+        past: [],
+        future: [],
       })
+    },
+
+    undo() {
+      const { past, project } = get()
+      if (!past.length || !project) return
+      const prev = past[past.length - 1]
+      set({ project: prev, past: past.slice(0, -1), future: [project, ...get().future].slice(0, HISTORY_LIMIT) })
+      lastCoalesceKey = null
+      schedulePersist(prev)
+    },
+
+    redo() {
+      const { future, project } = get()
+      if (!future.length || !project) return
+      const nextProj = future[0]
+      set({ project: nextProj, future: future.slice(1), past: [...get().past, project].slice(-HISTORY_LIMIT) })
+      lastCoalesceKey = null
+      schedulePersist(nextProj)
     },
 
     closeProject() {
@@ -160,8 +208,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
       set({ project: null, media: [], mediaUrls: {}, selectedClipId: null, currentTime: 0, isPlaying: false })
     },
 
-    updateProject(patch) {
-      mutate((p) => ({ ...p, ...patch }))
+    updateProject(patch, coalesceKey) {
+      mutate((p) => ({ ...p, ...patch }), coalesceKey)
     },
 
     async importFiles(files) {
@@ -322,14 +370,17 @@ export const useEditorStore = create<EditorState>((set, get) => {
       })
     },
 
-    updateClip(clipId, patch) {
-      mutate((p) => ({
-        ...p,
-        tracks: p.tracks.map((t) => ({
-          ...t,
-          clips: t.clips.map((c) => (c.id === clipId ? { ...c, ...patch } : c)),
-        })),
-      }))
+    updateClip(clipId, patch, coalesceKey) {
+      mutate(
+        (p) => ({
+          ...p,
+          tracks: p.tracks.map((t) => ({
+            ...t,
+            clips: t.clips.map((c) => (c.id === clipId ? { ...c, ...patch } : c)),
+          })),
+        }),
+        coalesceKey,
+      )
     },
 
     moveClip(clipId, trackId, start) {
