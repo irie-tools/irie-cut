@@ -244,7 +244,9 @@ function BeatCutControls() {
   if (visualCount < 2 || !hasSong) return null
   return (
     <div className="space-y-2 rounded-md border border-border p-2.5">
-      <Label className="text-xs font-semibold text-foreground">Beat-cut · {visualCount} images</Label>
+      <Label className="text-xs font-semibold text-foreground">
+        Beat-cut · {visualCount} {visualCount === 1 ? 'clip' : 'clips'}
+      </Label>
       <div className="flex items-center gap-1.5">
         {[1, 2, 4].map((opt) => (
           <button
@@ -264,7 +266,7 @@ function BeatCutControls() {
         className="w-full rounded bg-foreground px-2 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90"
         title="Detect the song's beats and cut these images to them"
       >
-        Cut {visualCount} images to the beat
+        Cut {visualCount} {visualCount === 1 ? 'clip' : 'clips'} to the beat
       </button>
     </div>
   )
