@@ -24,7 +24,7 @@ export function PropertiesPanel() {
   const clip = project?.tracks.flatMap((t) => t.clips).find((c) => c.id === selectedClipId)
 
   return (
-    <div className="flex h-full flex-col border-l border-border bg-card/30">
+    <div className="flex h-full flex-col border-l border-border bg-card">
       <div className="border-b border-border px-3 py-2.5 text-sm font-medium">
         {clip ? 'Clip properties' : 'Project'}
       </div>

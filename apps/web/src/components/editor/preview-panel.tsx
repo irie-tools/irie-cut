@@ -56,16 +56,26 @@ export function PreviewPanel() {
     }
   }, [])
 
+  const hasClips = project?.tracks.some((t) => t.clips.length) ?? false
+
   return (
-    <div className="flex h-full flex-col bg-card/10">
-      <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
+    <div className="flex h-full flex-col">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_center,oklch(0.17_0.008_245),oklch(0.12_0.006_245))] p-5">
         {project ? (
           <canvas
             ref={canvasRef}
             style={{ aspectRatio: `${project.width} / ${project.height}` }}
-            className="max-h-full max-w-full rounded-md bg-black shadow-lg ring-1 ring-border"
+            className="max-h-full max-w-full rounded-md bg-black shadow-2xl ring-1 ring-white/10"
           />
         ) : null}
+        {project && !hasClips && (
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 text-center">
+            <p className="text-sm font-medium text-muted-foreground">Your canvas is empty</p>
+            <p className="text-xs text-muted-foreground/70">
+              Import media or add a clip to start cutting
+            </p>
+          </div>
+        )}
       </div>
       <Transport />
     </div>

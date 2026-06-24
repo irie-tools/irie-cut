@@ -97,7 +97,7 @@ export function Editor({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-3">
+      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-card px-3">
         <div className="flex items-center gap-2">
           <Link
             to="/projects"

@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import {
   Scissors,
   Trash2,
@@ -43,6 +43,7 @@ export function Timeline() {
   const addMarker = useEditorStore((s) => s.addMarker)
   const removeMarker = useEditorStore((s) => s.removeMarker)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [snapTime, setSnapTime] = useState<number | null>(null)
 
   if (!project) return null
 
@@ -77,7 +78,7 @@ export function Timeline() {
   }
 
   return (
-    <div className="flex h-full flex-col border-t border-border bg-card/30">
+    <div className="flex h-full flex-col border-t border-border bg-card">
       {/* Toolbar */}
       <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border px-2">
         <ToolBtn label="Split (S)" onClick={splitAtPlayhead} disabled={!selectedClipId}>
@@ -126,7 +127,14 @@ export function Timeline() {
       </div>
 
       {/* Body: fixed track-header gutter + horizontally scrollable lanes */}
-      <div className="flex min-h-0 flex-1 overflow-y-auto">
+      <div className="relative flex min-h-0 flex-1 overflow-y-auto">
+        {total <= 0 && (
+          <div className="pointer-events-none absolute inset-y-0 left-40 right-0 z-30 flex items-center justify-center">
+            <p className="rounded-full bg-card/80 px-3 py-1.5 text-xs text-muted-foreground ring-1 ring-border">
+              Click <span className="text-foreground">+ Add</span> on a media item, or drag it onto a track
+            </p>
+          </div>
+        )}
         <div className="w-40 shrink-0 border-r border-border bg-card/40">
           <div className="h-7 border-b border-border" />
           {project.tracks.map((track, i) => (
@@ -134,7 +142,10 @@ export function Timeline() {
           ))}
         </div>
 
-        <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-x-auto">
+        <div
+          ref={scrollRef}
+          className="relative min-h-0 flex-1 overflow-x-auto bg-[oklch(0.15_0.006_245)]"
+        >
           <div style={{ width: contentWidth }} className="relative">
             <Ruler
               seconds={contentSeconds}
@@ -153,9 +164,18 @@ export function Timeline() {
                   selectedClipId={selectedClipId}
                   onSelect={selectClip}
                   timeFromEvent={timeFromEvent}
+                  onSnap={setSnapTime}
                 />
               ))}
             </div>
+
+            {/* Snap guide while dragging */}
+            {snapTime != null && (
+              <div
+                className="pointer-events-none absolute top-0 bottom-0 z-30 w-px bg-primary/80 shadow-[0_0_5px_var(--color-primary)]"
+                style={{ left: snapTime * pps }}
+              />
+            )}
 
             {/* Playhead spanning ruler + tracks */}
             <div
@@ -321,12 +341,14 @@ function TrackRow({
   selectedClipId,
   onSelect,
   timeFromEvent,
+  onSnap,
 }: {
   track: Track
   pps: number
   selectedClipId: string | null
   onSelect: (id: string | null) => void
   timeFromEvent: (clientX: number) => number
+  onSnap: (t: number | null) => void
 }) {
   const addClipFromMedia = useEditorStore((s) => s.addClipFromMedia)
 
@@ -353,6 +375,7 @@ function TrackRow({
           selected={clip.id === selectedClipId}
           onSelect={onSelect}
           locked={!!track.locked}
+          onSnap={onSnap}
         />
       ))}
     </div>
@@ -372,12 +395,14 @@ function ClipView({
   selected,
   onSelect,
   locked,
+  onSnap,
 }: {
   clip: Clip
   pps: number
   selected: boolean
   onSelect: (id: string | null) => void
   locked: boolean
+  onSnap: (t: number | null) => void
 }) {
   const left = clip.start * pps
   const width = Math.max(8, clip.duration * pps)
@@ -430,12 +455,16 @@ function ClipView({
       const ds = (ev.clientX - startX) / pps
       const s = useEditorStore.getState()
       if (kind === 'move') {
-        let start = Math.max(0, o.start + ds)
+        const rawStart = Math.max(0, o.start + ds)
         // Snap the leading edge, or the trailing edge if it's closer.
-        const snappedStart = snap(start)
-        const snappedEnd = snap(start + o.duration) - o.duration
-        start = Math.abs(snappedStart - start) <= Math.abs(snappedEnd - start) ? snappedStart : snappedEnd
-        s.updateClip(clip.id, { start: Math.max(0, start) }, ck)
+        const snappedStart = snap(rawStart)
+        const snappedEnd = snap(rawStart + o.duration) - o.duration
+        const useStart = Math.abs(snappedStart - rawStart) <= Math.abs(snappedEnd - rawStart)
+        const start = Math.max(0, useStart ? snappedStart : snappedEnd)
+        s.updateClip(clip.id, { start }, ck)
+        const startSnapped = useStart && Math.abs(snappedStart - rawStart) > 1e-6
+        const endSnapped = !useStart && Math.abs(snappedEnd - rawStart) > 1e-6
+        onSnap(startSnapped ? start : endSnapped ? start + o.duration : null)
       } else if (kind === 'trim-l') {
         const maxLeft = o.duration - 0.1
         const delta = Math.min(Math.max(ds, -o.trimStart), maxLeft)
@@ -457,6 +486,7 @@ function ClipView({
       }
     }
     const up = () => {
+      onSnap(null)
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
     }

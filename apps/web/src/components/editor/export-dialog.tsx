@@ -85,7 +85,12 @@ export function ExportButton() {
 
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)} disabled={empty}>
+      <Button
+        size="sm"
+        onClick={() => setOpen(true)}
+        disabled={empty}
+        className="bg-gradient-to-b from-primary to-primary/80 shadow-sm shadow-primary/30 hover:to-primary"
+      >
         <Download className="size-4" /> Export
       </Button>
       <Dialog

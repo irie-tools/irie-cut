@@ -19,13 +19,13 @@ import { AITab } from './ai-panel'
 
 export function MediaPanel() {
   return (
-    <div className="flex h-full flex-col border-r border-border bg-card/30">
+    <div className="flex h-full flex-col border-r border-border bg-card">
       <Tabs defaultValue="media" className="flex h-full flex-col gap-0">
         <TabsList className="m-2 grid grid-cols-4">
-          <TabsTrigger value="media">Media</TabsTrigger>
-          <TabsTrigger value="text">Text</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="ai">AI</TabsTrigger>
+          <TabsTrigger value="media" className="data-[active]:bg-primary/15 data-[active]:text-primary">Media</TabsTrigger>
+          <TabsTrigger value="text" className="data-[active]:bg-primary/15 data-[active]:text-primary">Text</TabsTrigger>
+          <TabsTrigger value="templates" className="data-[active]:bg-primary/15 data-[active]:text-primary">Templates</TabsTrigger>
+          <TabsTrigger value="ai" className="data-[active]:bg-primary/15 data-[active]:text-primary">AI</TabsTrigger>
         </TabsList>
         <TabsContent value="media" className="min-h-0 flex-1">
           <MediaTab />
