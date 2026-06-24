@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Download, Loader2, Captions as CaptionsIcon, ListTree } from 'lucide-react'
+import { Download, Loader2, Captions as CaptionsIcon, ListTree, Megaphone } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import {
   Dialog,
@@ -14,6 +14,7 @@ import { useEditorStore, projectDuration } from '#/stores/editor-store'
 import { exportProject } from '#/lib/exporter'
 import { exportProjectWebCodecs, webCodecsSupported } from '#/lib/exporter-webcodecs'
 import { exportAllSizes, PLATFORM_SIZES, type SizePreset } from '#/lib/exporter-multi'
+import { buildCaptionText, buildPosterFromCanvas } from '#/lib/post-kit'
 import * as storage from '#/lib/storage'
 import { formatTimecode } from '#/lib/media'
 import { cn } from '#/lib/utils'
@@ -91,6 +92,18 @@ export function ExportButton() {
   function downloadCutdown() {
     if (!project) return
     download(JSON.stringify(buildCutdown(project), null, 2), 'cutdown.json', 'application/json')
+  }
+
+  function saveCaption() {
+    if (!project) return
+    download(buildCaptionText(project), 'caption.txt', 'text/plain;charset=utf-8')
+  }
+
+  async function savePoster() {
+    if (!project) return
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement | null
+    const blob = await buildPosterFromCanvas(canvas)
+    if (blob) downloadBlob(blob, `${sanitize(project.name)}-poster.jpg`)
   }
 
   async function run() {
@@ -281,6 +294,27 @@ export function ExportButton() {
                     onClick={downloadCutdown}
                   >
                     Download cutdown
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {phase !== 'exporting' && (
+              <div className="mt-3 rounded-lg border border-border p-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Megaphone className="size-4 text-primary" /> Post kit
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {project?.promo?.campaign
+                    ? 'Caption + hashtags from your Pam campaign, plus a poster of the current frame.'
+                    : 'A ready-to-post caption + hashtags, plus a poster of the current frame.'}
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" variant="outline" onClick={saveCaption}>
+                    Save caption
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={savePoster}>
+                    Save poster (current frame)
                   </Button>
                 </div>
               </div>
