@@ -39,9 +39,28 @@ cd apps/web
 bun run build  # outputs apps/web/dist
 ```
 
+## AI assist (optional)
+
+Marketing-copy, auto-captions, and image generation run through dependency-free
+serverless functions in `/api` that call an OpenAI-compatible endpoint. The editor
+works fully without them; to enable, set these in your Vercel project env:
+
+```text
+AI_GATEWAY_API_KEY   required — a Vercel AI Gateway key (or AI_API_KEY / OPENAI_API_KEY)
+AI_BASE_URL          optional — default https://ai-gateway.vercel.sh/v1
+AI_TEXT_MODEL        optional — default openai/gpt-4o-mini
+AI_IMAGE_MODEL       optional — default openai/gpt-image-1
+AI_TRANSCRIBE_MODEL  optional — default whisper-1
+```
+
+If your gateway doesn't expose images/transcription, point `AI_BASE_URL` at a
+provider that does. AI runs on the deployed site (or via `vercel dev`), not plain `vite dev`.
+
 ## Deployment
 
-The web app is a static SPA. On Vercel, set the project **Root Directory** to `apps/web`; `vercel.json` provides the build command, output directory, and SPA rewrite.
+The web app is a static SPA built from `apps/web`; the root `vercel.json` wires the
+build command, output directory, SPA rewrite (excluding `/api`), and `/api` serverless
+functions. Pushing to `main` auto-deploys.
 
 ## License
 

@@ -15,15 +15,17 @@ import type { MediaAsset } from '#/types/editor'
 import { formatDuration } from '#/lib/media'
 import { cn } from '#/lib/utils'
 import { TEMPLATES } from '#/lib/templates'
+import { AITab } from './ai-panel'
 
 export function MediaPanel() {
   return (
     <div className="flex h-full flex-col border-r border-border bg-card/30">
       <Tabs defaultValue="media" className="flex h-full flex-col gap-0">
-        <TabsList className="m-2 grid grid-cols-3">
+        <TabsList className="m-2 grid grid-cols-4">
           <TabsTrigger value="media">Media</TabsTrigger>
           <TabsTrigger value="text">Text</TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="ai">AI</TabsTrigger>
         </TabsList>
         <TabsContent value="media" className="min-h-0 flex-1">
           <MediaTab />
@@ -33,6 +35,9 @@ export function MediaPanel() {
         </TabsContent>
         <TabsContent value="templates" className="min-h-0 flex-1">
           <TemplatesTab />
+        </TabsContent>
+        <TabsContent value="ai" className="min-h-0 flex-1">
+          <AITab />
         </TabsContent>
       </Tabs>
     </div>
@@ -155,7 +160,7 @@ function TextTab() {
   return (
     <div className="px-3 pb-2">
       <button
-        onClick={addTextClip}
+        onClick={() => addTextClip()}
         className="flex w-full items-center gap-3 rounded-lg border border-border bg-background p-3 text-left transition-colors hover:border-primary/50 hover:bg-accent/40"
       >
         <div className="flex size-10 items-center justify-center rounded-md bg-accent">

@@ -70,7 +70,7 @@ interface EditorState {
   undo: () => void
   redo: () => void
 
-  importFiles: (files: FileList | File[]) => Promise<void>
+  importFiles: (files: FileList | File[]) => Promise<string[]>
   removeMedia: (id: string) => Promise<void>
   getMediaUrl: (mediaId: string) => string | undefined
 
@@ -79,7 +79,8 @@ interface EditorState {
   removeTrack: (trackId: string) => void
   moveTrack: (trackId: string, dir: -1 | 1) => void
   addClipFromMedia: (mediaId: string, atTime?: number) => void
-  addTextClip: () => void
+  addTextClip: (content?: string) => void
+  addCaptions: (cues: { start: number; end: number; text: string }[], offset?: number) => void
   applyTemplate: (template: Template) => void
   updateClip: (clipId: string, patch: Partial<Clip>, coalesceKey?: string) => void
   moveClip: (clipId: string, trackId: string, start: number) => void
@@ -220,8 +221,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     async importFiles(files) {
       const project = get().project
-      if (!project) return
+      if (!project) return []
       set({ importing: true })
+      const ids: string[] = []
       try {
         for (const file of Array.from(files)) {
           const type = detectMediaType(file.type)
@@ -251,10 +253,12 @@ export const useEditorStore = create<EditorState>((set, get) => {
             media: [...s.media, asset],
             mediaUrls: { ...s.mediaUrls, [asset.id]: url },
           }))
+          ids.push(asset.id)
         }
       } finally {
         set({ importing: false })
       }
+      return ids
     },
 
     async removeMedia(id) {
@@ -339,7 +343,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       })
     },
 
-    addTextClip() {
+    addTextClip(content) {
       mutate((p) => {
         const { project, trackId } = trackForType(p, 'text')
         const clip: Clip = {
@@ -352,12 +356,41 @@ export const useEditorStore = create<EditorState>((set, get) => {
           trimStart: 0,
           trimEnd: DEFAULT_STILL_DURATION,
           volume: 1,
-          text: { ...DEFAULT_TEXT },
+          text: { ...DEFAULT_TEXT, content: content ?? DEFAULT_TEXT.content },
         }
         return {
           ...project,
           tracks: project.tracks.map((t) =>
             t.id === trackId ? { ...t, clips: [...t.clips, clip] } : t,
+          ),
+        }
+      })
+    },
+
+    addCaptions(cues, offset = 0) {
+      if (!cues.length) return
+      mutate((p) => {
+        const { project, trackId } = trackForType(p, 'text')
+        const clips: Clip[] = cues.map((c) => {
+          const start = Math.max(0, offset + c.start)
+          const duration = Math.max(0.3, (c.end || c.start + 2) - c.start)
+          return {
+            id: uid(),
+            trackId,
+            type: 'text' as const,
+            name: 'Caption',
+            start,
+            duration,
+            trimStart: 0,
+            trimEnd: duration,
+            volume: 1,
+            text: { ...DEFAULT_TEXT, content: c.text, fontSize: Math.round(project.height * 0.045), bold: true, y: 0.82, background: '#000000' },
+          }
+        })
+        return {
+          ...project,
+          tracks: project.tracks.map((t) =>
+            t.id === trackId ? { ...t, clips: [...t.clips, ...clips] } : t,
           ),
         }
       })
