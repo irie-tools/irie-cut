@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { planBeatCut, kenBurnsKeyframes, clipsFromSegments } from './beat-cut'
+import { planBeatCut, kenBurnsKeyframes, clipsFromSegments, sequentialClips } from './beat-cut'
 
 describe('planBeatCut', () => {
   it('cuts every K beats and cycles sources, last segment reaches songDuration', () => {
@@ -68,5 +68,47 @@ describe('clipsFromSegments', () => {
     expect(kf.scale?.[0].value).toBe(1)
     expect(kf.scale?.[1].value).toBeCloseTo(1.08)
     expect(kf.scale?.[1].t).toBeCloseTo(3)
+  })
+})
+
+describe('sequentialClips', () => {
+  it('lays sources end-to-end; video uses sourceDuration with no Ken-Burns', () => {
+    let n = 0
+    const clips = sequentialClips({
+      sources: [
+        { mediaId: 'v1', type: 'video', sourceDuration: 2 },
+        { mediaId: 'v2', type: 'video', sourceDuration: 1.5 },
+      ],
+      trackId: 't1',
+      makeId: () => `id${n++}`,
+    })
+    expect(clips.map((c) => c.start)).toEqual([0, 2])
+    expect(clips[0].duration).toBeCloseTo(2)
+    expect(clips[1].duration).toBeCloseTo(1.5)
+    expect(clips[0].type).toBe('video')
+    expect(clips[0].keyframes).toBeUndefined()
+  })
+
+  it('image sources use stillDuration and get Ken-Burns', () => {
+    const clips = sequentialClips({
+      sources: [{ mediaId: 'a', type: 'image' }, { mediaId: 'b', type: 'image' }],
+      trackId: 't1',
+      makeId: () => 'x',
+      stillDuration: 4,
+    })
+    expect(clips.map((c) => c.start)).toEqual([0, 4])
+    expect(clips[0].duration).toBe(4)
+    expect(clips[0].keyframes?.scale?.[1].value).toBeCloseTo(1.08)
+  })
+
+  it('falls back to stillDuration when a video has no known duration', () => {
+    const clips = sequentialClips({
+      sources: [{ mediaId: 'v', type: 'video' }],
+      trackId: 't1',
+      makeId: () => 'x',
+      stillDuration: 3,
+    })
+    expect(clips[0].duration).toBe(3)
+    expect(clips[0].trimEnd).toBe(3)
   })
 })

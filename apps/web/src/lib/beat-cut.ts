@@ -125,3 +125,35 @@ export function clipsFromSegments(args: {
     }
   })
 }
+
+/** Lay sources end-to-end at natural lengths (no song = no beat-cut). Images get Ken-Burns. */
+export function sequentialClips(args: {
+  sources: BeatCutSource[]
+  trackId: string
+  makeId: () => string
+  stillDuration?: number
+}): Clip[] {
+  const { sources, trackId, makeId } = args
+  const still = args.stillDuration ?? 3
+  let t = 0
+  return sources.map((src, i) => {
+    if (src.type === 'video') {
+      const dur = round3(src.sourceDuration && src.sourceDuration > 0 ? src.sourceDuration : still)
+      const clip: Clip = {
+        id: makeId(), trackId, type: 'video', name: 'Clip', mediaId: src.mediaId,
+        start: round3(t), duration: dur, trimStart: 0, trimEnd: dur, volume: 1, fit: 'cover',
+      }
+      t += dur
+      return clip
+    }
+    const dur = round3(still)
+    const clip: Clip = {
+      id: makeId(), trackId, type: 'image', name: 'Cover', mediaId: src.mediaId,
+      start: round3(t), duration: dur, trimStart: 0, trimEnd: dur, volume: 1, fit: 'cover',
+      transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+      keyframes: kenBurnsKeyframes(dur, i),
+    }
+    t += dur
+    return clip
+  })
+}
