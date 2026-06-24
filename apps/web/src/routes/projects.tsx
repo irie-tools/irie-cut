@@ -8,6 +8,7 @@ import {
   Clock,
   Upload,
   Download,
+  Music,
 } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import {
@@ -31,6 +32,7 @@ import { ClientOnly } from '#/components/client-only'
 import type { Project } from '#/types/editor'
 import { getAllProjects, deleteProject } from '#/lib/storage'
 import { exportProjectBundle, importProjectBundle } from '#/lib/project-io'
+import { buildPromoProject } from '#/lib/pam-import'
 import { createProject, projectDuration } from '#/stores/editor-store'
 import { formatDuration } from '#/lib/media'
 
@@ -66,6 +68,7 @@ function ProjectsInner() {
   const [creating, setCreating] = useState(false)
   const [importing, setImporting] = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
+  const pamRef = useRef<HTMLInputElement>(null)
 
   async function handleImport(file: File) {
     setImporting(true)
@@ -74,6 +77,18 @@ function ProjectsInner() {
       navigate({ to: '/editor/$projectId', params: { projectId: id } })
     } catch {
       alert('Could not import that file — make sure it is an Irie Cut project (.json).')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  async function handlePamImport(file: File) {
+    setImporting(true)
+    try {
+      const id = await buildPromoProject(await file.text())
+      navigate({ to: '/editor/$projectId', params: { projectId: id } })
+    } catch {
+      alert('Could not import that song — make sure it is a Pam promo bundle (.iriepromo.json).')
     } finally {
       setImporting(false)
     }
@@ -140,6 +155,20 @@ function ProjectsInner() {
                 e.target.value = ''
               }}
             />
+            <input
+              ref={pamRef}
+              type="file"
+              accept=".json,application/json"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) void handlePamImport(f)
+                e.target.value = ''
+              }}
+            />
+            <Button variant="outline" onClick={() => pamRef.current?.click()} disabled={importing}>
+              <Music className="size-4" /> Import from Pam
+            </Button>
             <Button variant="outline" onClick={() => importRef.current?.click()} disabled={importing}>
               <Upload className="size-4" /> {importing ? 'Importing…' : 'Import'}
             </Button>

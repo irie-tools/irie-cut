@@ -171,6 +171,19 @@ export interface Project {
   masterVolume?: number
   /** Timeline markers (seconds + label). */
   markers?: { id: string; time: number; label: string }[]
+  /** Promo provenance when this project was started from a Pam song (see lib/pam-import). */
+  promo?: {
+    source: 'pam'
+    title: string
+    artist?: string
+    campaign?: {
+      hook?: string
+      audience?: string
+      captionDraft?: string
+      teaserIdeas?: string[]
+      rolloutNotes?: string
+    } | null
+  }
   tracks: Track[]
 }
 
