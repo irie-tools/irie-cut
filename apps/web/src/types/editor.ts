@@ -173,7 +173,7 @@ export interface Project {
   markers?: { id: string; time: number; label: string }[]
   /** Promo provenance when this project was started from a Pam song (see lib/pam-import). */
   promo?: {
-    source: 'pam'
+    source: 'pam' | 'studio'
     title: string
     artist?: string
     campaign?: {

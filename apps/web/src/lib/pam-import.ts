@@ -5,23 +5,28 @@
 // storage, returns a projectId) so the editor opens onto a finished starting point.
 
 import type { Clip, MediaAsset, Project, TextProperties, Track } from '#/types/editor'
+import { DEFAULT_STILL_DURATION } from '#/types/editor'
 import * as storage from '#/lib/storage'
 import { probeMedia } from '#/lib/media'
 import { getBeats } from '#/lib/beat-detect'
-import { planBeatCut, clipsFromSegments, type BeatCutSource } from '#/lib/beat-cut'
+import { planBeatCut, clipsFromSegments, sequentialClips, type BeatCutSource } from '#/lib/beat-cut'
 
-export interface PamBundle {
+export interface PromoBundle {
   iriePromo: 1
-  title: string
+  /** Provenance hint; if absent, inferred (clips-only ⇒ 'studio'). */
+  source?: 'pam' | 'studio'
+  title?: string
   artist?: string
   album?: string | null
   trackNo?: number | null
-  durationSec: number
+  durationSec?: number
   persona?: string | null
-  audio: string // data URL
-  cover: string // data URL — canonical LP cover (also the poster/thumbnail)
+  audio?: string // data URL — optional music bed
+  cover?: string // data URL — canonical LP cover / poster (Pam)
   /** Optional extra cover variations to beat-cut between (data URLs). */
   covers?: string[]
+  /** Video clips as data URLs (Video Studio). */
+  clips?: string[]
   lyrics?: string
   lines?: { start: number; end: number; text: string }[]
   campaign?: NonNullable<Project['promo']>['campaign']
@@ -63,9 +68,11 @@ function captionStyle(height: number): TextProperties {
  * promo format); multi-size export re-frames to the rest. Returns the new id.
  */
 export async function buildPromoProject(json: string): Promise<string> {
-  const b = JSON.parse(json) as PamBundle
-  if (!b || b.iriePromo !== 1 || !b.audio || !b.cover) {
-    throw new Error('Not a valid Pam promo bundle (.iriepromo.json).')
+  const b = JSON.parse(json) as PromoBundle
+  const imageUrls = b.covers && b.covers.length ? b.covers : b.cover ? [b.cover] : []
+  const clipUrls = b.clips ?? []
+  if (!b || b.iriePromo !== 1 || imageUrls.length + clipUrls.length === 0) {
+    throw new Error('Not a valid Irie promo bundle (.iriepromo.json).')
   }
   const now = Date.now()
   const projectId = uid()
@@ -73,23 +80,31 @@ export async function buildPromoProject(json: string): Promise<string> {
   const height = 1920
   const fps = 30
 
-  const audioBlob = await dataUrlToBlob(b.audio)
-  const audioFile = new File([audioBlob], b.title || 'song', { type: audioBlob.type || 'audio/mpeg' })
-
-  let audioDuration = b.durationSec || 0
-  try {
-    const ap = await probeMedia(audioFile, 'audio')
-    if (ap.duration) audioDuration = ap.duration
-  } catch {
-    /* fall back to bundle duration */
+  // --- Audio (optional music bed) ---
+  let audioId: string | null = null
+  let audioBlob: Blob | null = null
+  let audioDuration = 0
+  if (b.audio) {
+    audioBlob = await dataUrlToBlob(b.audio)
+    const audioFile = new File([audioBlob], b.title || 'song', { type: audioBlob.type || 'audio/mpeg' })
+    audioDuration = b.durationSec || 0
+    try {
+      const ap = await probeMedia(audioFile, 'audio')
+      if (ap.duration) audioDuration = ap.duration
+    } catch {
+      /* fall back to durationSec */
+    }
+    audioId = uid()
   }
-  const duration = Math.max(0.5, audioDuration || b.durationSec || 10)
 
-  const audioId = uid()
-
-  // One or more cover variations to beat-cut between. `cover` stays the canonical/poster image.
-  const imageUrls = b.covers && b.covers.length ? b.covers : [b.cover]
-  const coverImages: { id: string; asset: MediaAsset; blob: Blob }[] = []
+  // --- Visual sources: images first, then videos (each imported as media) ---
+  interface SourceMedia {
+    id: string
+    asset: MediaAsset
+    blob: Blob
+    source: BeatCutSource
+  }
+  const media: SourceMedia[] = []
   for (let i = 0; i < imageUrls.length; i++) {
     const blob = await dataUrlToBlob(imageUrls[i])
     const file = new File([blob], `cover-${i}`, { type: blob.type || 'image/jpeg' })
@@ -102,9 +117,8 @@ export async function buildPromoProject(json: string): Promise<string> {
       /* keep zeros */
     }
     const id = uid()
-    coverImages.push({
-      id,
-      blob,
+    media.push({
+      id, blob, source: { mediaId: id, type: 'image' },
       asset: {
         id, projectId, name: i === 0 ? 'Cover' : `Cover ${i + 1}`, type: 'image',
         mimeType: blob.type || 'image/jpeg', size: blob.size, duration: 0,
@@ -112,34 +126,48 @@ export async function buildPromoProject(json: string): Promise<string> {
       },
     })
   }
-  const coverId = coverImages[0].id // canonical cover id (kept for parity / poster)
-
-  const audioAsset: MediaAsset = {
-    id: audioId, projectId, name: b.title || 'Song', type: 'audio', mimeType: audioBlob.type || 'audio/mpeg',
-    size: audioBlob.size, duration, width: 0, height: 0, createdAt: now,
+  for (let i = 0; i < clipUrls.length; i++) {
+    const blob = await dataUrlToBlob(clipUrls[i])
+    const file = new File([blob], `clip-${i}`, { type: blob.type || 'video/mp4' })
+    let probe: { duration: number; width: number; height: number; thumbnail?: string } = {
+      duration: 0, width: 0, height: 0,
+    }
+    try {
+      probe = await probeMedia(file, 'video')
+    } catch {
+      /* keep zeros */
+    }
+    const id = uid()
+    const dur = probe.duration || 0
+    media.push({
+      id, blob, source: { mediaId: id, type: 'video', sourceDuration: dur > 0 ? dur : undefined },
+      asset: {
+        id, projectId, name: `Clip ${i + 1}`, type: 'video',
+        mimeType: blob.type || 'video/mp4', size: blob.size, duration: dur,
+        width: probe.width, height: probe.height, thumbnail: probe.thumbnail, createdAt: now,
+      },
+    })
   }
+  const sources = media.map((m) => m.source)
+
+  // --- Project duration ---
+  const videoTotal = media
+    .filter((m) => m.source.type === 'video')
+    .reduce((s, m) => s + (m.source.sourceDuration ?? 0), 0)
+  const fallbackTotal = videoTotal > 0 ? videoTotal : imageUrls.length * DEFAULT_STILL_DURATION
+  const duration = Math.max(0.5, audioDuration || fallbackTotal || 10)
 
   const textTrackId = uid()
   const videoTrackId = uid()
   const audioTrackId = uid()
 
-  // Video track: a single Ken-Burns hero for one image, or a beat-cut sequence for N.
+  // --- Visuals track: hero (1 image) / beat-cut (song) / sequential (no song) ---
   let videoClips: Clip[]
-  if (coverImages.length > 1) {
-    let beats: number[] = []
-    try {
-      beats = await getBeats(audioId, audioBlob)
-    } catch {
-      /* no beats → planBeatCut even-splits across the covers */
-    }
-    const sources: BeatCutSource[] = coverImages.map((c) => ({ mediaId: c.id, type: 'image' }))
-    const segments = planBeatCut({ beats, songDuration: duration, sourceCount: sources.length, k: 2 })
-    videoClips = clipsFromSegments({ segments, sources, trackId: videoTrackId, makeId: uid })
-  } else {
+  if (sources.length === 1 && sources[0].type === 'image') {
     // Cover hero with a slow Ken-Burns push + drift (the Phase 1/6 keyframe engine).
     videoClips = [
       {
-        id: uid(), trackId: videoTrackId, type: 'image', name: 'Cover', mediaId: coverId,
+        id: uid(), trackId: videoTrackId, type: 'image', name: 'Cover', mediaId: sources[0].mediaId,
         start: 0, duration, trimStart: 0, trimEnd: duration, volume: 1, fit: 'cover',
         transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
         keyframes: {
@@ -148,13 +176,35 @@ export async function buildPromoProject(json: string): Promise<string> {
         },
       },
     ]
+  } else if (audioId && audioBlob) {
+    let beats: number[] = []
+    try {
+      beats = await getBeats(audioId, audioBlob)
+    } catch {
+      /* no beats → planBeatCut even-splits */
+    }
+    const segments = planBeatCut({ beats, songDuration: duration, sourceCount: sources.length, k: 2 })
+    videoClips = clipsFromSegments({ segments, sources, trackId: videoTrackId, makeId: uid })
+  } else {
+    videoClips = sequentialClips({ sources, trackId: videoTrackId, makeId: uid })
   }
 
-  const audioClip: Clip = {
-    id: uid(), trackId: audioTrackId, type: 'audio', name: b.title || 'Song', mediaId: audioId,
-    start: 0, duration, trimStart: 0, trimEnd: duration, volume: 1, fadeOut: Math.min(1.5, duration * 0.1),
-  }
+  // --- Audio clip + asset (optional) ---
+  const audioClip: Clip | null = audioId
+    ? {
+        id: uid(), trackId: audioTrackId, type: 'audio', name: b.title || 'Song', mediaId: audioId,
+        start: 0, duration, trimStart: 0, trimEnd: duration, volume: 1, fadeOut: Math.min(1.5, duration * 0.1),
+      }
+    : null
+  const audioAsset: MediaAsset | null =
+    audioId && audioBlob
+      ? {
+          id: audioId, projectId, name: b.title || 'Song', type: 'audio',
+          mimeType: audioBlob.type || 'audio/mpeg', size: audioBlob.size, duration, width: 0, height: 0, createdAt: now,
+        }
+      : null
 
+  // --- Captions (optional) ---
   const baseCaption = captionStyle(height)
   const captionClips: Clip[] = (b.lines ?? [])
     .filter((l) => l && l.text && l.text.trim())
@@ -170,23 +220,29 @@ export async function buildPromoProject(json: string): Promise<string> {
       }
     })
 
-  const tracks: Track[] = [
-    { id: textTrackId, type: 'text', name: 'Captions', muted: false, solo: false, volume: 1, clips: captionClips },
-    { id: videoTrackId, type: 'video', name: 'Cover', muted: false, solo: false, volume: 1, clips: videoClips },
-    { id: audioTrackId, type: 'audio', name: 'Song', muted: false, solo: false, volume: 1, clips: [audioClip] },
-  ]
+  // --- Tracks (only those with content) ---
+  const tracks: Track[] = []
+  if (captionClips.length) {
+    tracks.push({ id: textTrackId, type: 'text', name: 'Captions', muted: false, solo: false, volume: 1, clips: captionClips })
+  }
+  tracks.push({ id: videoTrackId, type: 'video', name: 'Visuals', muted: false, solo: false, volume: 1, clips: videoClips })
+  if (audioClip) {
+    tracks.push({ id: audioTrackId, type: 'audio', name: 'Song', muted: false, solo: false, volume: 1, clips: [audioClip] })
+  }
+
+  const source: 'pam' | 'studio' = b.source ?? (clipUrls.length && !imageUrls.length ? 'studio' : 'pam')
 
   const project: Project = {
     id: projectId,
-    name: `${b.title || 'Song'} — promo`,
+    name: `${b.title || (source === 'studio' ? 'Studio promo' : 'Song')} — promo`,
     createdAt: now, updatedAt: now,
     width, height, fps, background: '#000000', masterVolume: 1, markers: [],
-    promo: { source: 'pam', title: b.title, artist: b.artist, campaign: b.campaign ?? null },
+    promo: { source, title: b.title || '', artist: b.artist, campaign: b.campaign ?? null },
     tracks,
   }
 
   await storage.saveProject(project)
-  for (const c of coverImages) await storage.saveMedia(c.asset, c.blob)
-  await storage.saveMedia(audioAsset, audioBlob)
+  for (const m of media) await storage.saveMedia(m.asset, m.blob)
+  if (audioAsset && audioBlob) await storage.saveMedia(audioAsset, audioBlob)
   return projectId
 }
