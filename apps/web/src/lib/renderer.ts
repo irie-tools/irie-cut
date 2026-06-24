@@ -139,6 +139,58 @@ function applyTransition(ctx: CanvasRenderingContext2D, m: TransitionModifier, W
   }
 }
 
+function drawShape(
+  ctx: CanvasRenderingContext2D,
+  sh: NonNullable<Clip['shape']>,
+  W: number,
+  H: number,
+) {
+  const cx = sh.x * W
+  const cy = sh.y * H
+  const w = sh.w * W
+  const h = sh.h * H
+  const hasFill = !!sh.fill && sh.fill !== 'none'
+  const hasStroke = !!sh.stroke && sh.strokeWidth > 0
+  ctx.lineWidth = sh.strokeWidth
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  if (sh.stroke) ctx.strokeStyle = sh.stroke
+  if (sh.fill) ctx.fillStyle = sh.fill
+
+  if (sh.kind === 'rect') {
+    const x = cx - w / 2
+    const y = cy - h / 2
+    const r = Math.min(sh.radius ?? 0, w / 2, h / 2)
+    ctx.beginPath()
+    if (r > 0 && typeof ctx.roundRect === 'function') ctx.roundRect(x, y, w, h, r)
+    else ctx.rect(x, y, w, h)
+    if (hasFill) ctx.fill()
+    if (hasStroke) ctx.stroke()
+  } else if (sh.kind === 'ellipse') {
+    ctx.beginPath()
+    ctx.ellipse(cx, cy, Math.max(1, w / 2), Math.max(1, h / 2), 0, 0, Math.PI * 2)
+    if (hasFill) ctx.fill()
+    if (hasStroke) ctx.stroke()
+  } else {
+    // line / arrow: a horizontal segment through the centre (rotate via transform).
+    const x1 = cx - w / 2
+    const x2 = cx + w / 2
+    ctx.beginPath()
+    ctx.moveTo(x1, cy)
+    ctx.lineTo(x2, cy)
+    ctx.stroke()
+    if (sh.kind === 'arrow') {
+      const a = Math.max(10, sh.strokeWidth * 3.5)
+      ctx.beginPath()
+      ctx.moveTo(x2, cy)
+      ctx.lineTo(x2 - a, cy - a * 0.6)
+      ctx.moveTo(x2, cy)
+      ctx.lineTo(x2 - a, cy + a * 0.6)
+      ctx.stroke()
+    }
+  }
+}
+
 /** Characters revealed per second for the typewriter animation. */
 const TYPEWRITER_CPS = 20
 
@@ -244,6 +296,13 @@ export function drawFrame(
           const box = containBox(el.naturalWidth, el.naturalHeight, W, H)
           compositeMedia(ctx, clip, el, el.naturalWidth, el.naturalHeight, box, time, W, H)
         }
+      } else if (clip.type === 'shape' && clip.shape) {
+        ctx.save()
+        applyClipTransform(ctx, clip, time, W, H)
+        applyTransition(ctx, transitionModifier(clip, time), W, H)
+        ctx.globalCompositeOperation = blendOp(clip.blend)
+        drawShape(ctx, clip.shape, W, H)
+        ctx.restore()
       }
     }
   }

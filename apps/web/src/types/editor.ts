@@ -22,7 +22,23 @@ export interface MediaAsset {
 
 export type TrackType = 'video' | 'audio' | 'text'
 
-export type ClipType = 'video' | 'audio' | 'image' | 'text'
+export type ClipType = 'video' | 'audio' | 'image' | 'text' | 'shape'
+
+export interface ShapeProperties {
+  kind: 'rect' | 'ellipse' | 'line' | 'arrow'
+  /** Centre, 0..1 of the canvas. */
+  x: number
+  y: number
+  /** Size, 0..1 of the canvas. */
+  w: number
+  h: number
+  /** Fill colour; undefined/'none' = no fill. */
+  fill?: string
+  stroke?: string
+  strokeWidth: number
+  /** Rounded-rect corner radius, px (rect only). */
+  radius?: number
+}
 
 export interface TextProperties {
   content: string
@@ -56,6 +72,14 @@ export interface TextProperties {
   reveal?: number
   /** When set, reveal animates over time (typewriter effect) instead of using `reveal`. */
   typewriter?: boolean
+}
+
+/** Default geometry for a newly-added shape clip. */
+export const DEFAULT_SHAPES: Record<ShapeProperties['kind'], ShapeProperties> = {
+  rect: { kind: 'rect', x: 0.5, y: 0.5, w: 0.3, h: 0.2, fill: '#22d3ee', stroke: '#0b1220', strokeWidth: 0, radius: 0 },
+  ellipse: { kind: 'ellipse', x: 0.5, y: 0.5, w: 0.25, h: 0.25, fill: '#22d3ee', stroke: '#0b1220', strokeWidth: 0 },
+  line: { kind: 'line', x: 0.5, y: 0.5, w: 0.35, h: 0, stroke: '#22d3ee', strokeWidth: 6 },
+  arrow: { kind: 'arrow', x: 0.5, y: 0.5, w: 0.35, h: 0, stroke: '#22d3ee', strokeWidth: 6 },
 }
 
 export interface Clip {
@@ -104,6 +128,7 @@ export interface Clip {
     Record<'x' | 'y' | 'scale' | 'rotation' | 'opacity', { t: number; value: number }[]>
   >
   text?: TextProperties
+  shape?: ShapeProperties
 }
 
 export interface Track {

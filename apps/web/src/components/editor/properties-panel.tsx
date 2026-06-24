@@ -1,6 +1,6 @@
 import { Bold, Italic, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
 import { useEditorStore } from '#/stores/editor-store'
-import type { Clip, TextProperties } from '#/types/editor'
+import type { Clip, TextProperties, ShapeProperties } from '#/types/editor'
 import { Label } from '#/components/ui/label'
 import { Input } from '#/components/ui/input'
 import { Textarea } from '#/components/ui/textarea'
@@ -124,7 +124,9 @@ function ClipProps({ clip }: { clip: Clip }) {
         </Row>
       )}
 
-      {(clip.type === 'video' || clip.type === 'image') && <TransformControls clip={clip} />}
+      {clip.type === 'shape' && clip.shape && <ShapeProps clip={clip} shape={clip.shape} />}
+
+      {(clip.type === 'video' || clip.type === 'image' || clip.type === 'shape') && <TransformControls clip={clip} />}
 
       {(clip.type === 'video' || clip.type === 'image') && (
         <Row label="Filter">
@@ -155,7 +157,7 @@ function ClipProps({ clip }: { clip: Clip }) {
 
       {(clip.type === 'video' || clip.type === 'image') && <AdjustControls clip={clip} />}
 
-      {(clip.type === 'video' || clip.type === 'image') && (
+      {(clip.type === 'video' || clip.type === 'image' || clip.type === 'shape') && (
         <Row label="Blend mode">
           <Select
             value={blendOp(clip.blend)}
@@ -388,6 +390,65 @@ function AdjustControls({ clip }: { clip: Clip }) {
           />
         </Row>
       ))}
+    </>
+  )
+}
+
+function ShapeProps({ clip, shape }: { clip: Clip; shape: ShapeProperties }) {
+  const updateClip = useEditorStore((s) => s.updateClip)
+  const set = (patch: Partial<ShapeProperties>, key?: string) =>
+    updateClip(clip.id, { shape: { ...shape, ...patch } }, key ? `${key}:${clip.id}` : undefined)
+  const isLine = shape.kind === 'line' || shape.kind === 'arrow'
+
+  return (
+    <>
+      <Label className="block pt-1 text-xs font-semibold text-foreground">Shape</Label>
+      <div className="flex gap-3">
+        {!isLine && (
+          <Row label="Fill">
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={shape.fill ?? '#22d3ee'}
+                onChange={(e) => set({ fill: e.target.value }, 'fill')}
+                className="h-9 w-full cursor-pointer rounded-md border border-border bg-background"
+              />
+              <button
+                onClick={() => set({ fill: shape.fill && shape.fill !== 'none' ? 'none' : '#22d3ee' })}
+                className="shrink-0 rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground"
+              >
+                {shape.fill && shape.fill !== 'none' ? 'On' : 'Off'}
+              </button>
+            </div>
+          </Row>
+        )}
+        <Row label="Stroke">
+          <input
+            type="color"
+            value={shape.stroke ?? '#0b1220'}
+            onChange={(e) => set({ stroke: e.target.value }, 'stroke')}
+            className="h-9 w-full cursor-pointer rounded-md border border-border bg-background"
+          />
+        </Row>
+      </div>
+      <Row label={`Stroke width · ${shape.strokeWidth}px`}>
+        <Slider value={[shape.strokeWidth]} min={0} max={40} step={1} onValueChange={(v) => set({ strokeWidth: sv(v) }, 'sw')} />
+      </Row>
+      <div className="flex gap-3">
+        <Row label={`Width · ${Math.round(shape.w * 100)}%`}>
+          <Slider value={[shape.w]} min={0.02} max={1} step={0.01} onValueChange={(v) => set({ w: sv(v) }, 'w')} />
+        </Row>
+        {!isLine && (
+          <Row label={`Height · ${Math.round(shape.h * 100)}%`}>
+            <Slider value={[shape.h]} min={0.02} max={1} step={0.01} onValueChange={(v) => set({ h: sv(v) }, 'h')} />
+          </Row>
+        )}
+      </div>
+      {shape.kind === 'rect' && (
+        <Row label={`Corner radius · ${shape.radius ?? 0}px`}>
+          <Slider value={[shape.radius ?? 0]} min={0} max={120} step={1} onValueChange={(v) => set({ radius: sv(v) }, 'r')} />
+        </Row>
+      )}
     </>
   )
 }

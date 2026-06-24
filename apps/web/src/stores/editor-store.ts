@@ -12,7 +12,7 @@ import type {
   Track,
   TrackType,
 } from '#/types/editor'
-import { DEFAULT_STILL_DURATION } from '#/types/editor'
+import { DEFAULT_STILL_DURATION, DEFAULT_SHAPES } from '#/types/editor'
 import {
   upsertKeyframe,
   removeKeyframeAt,
@@ -85,6 +85,7 @@ interface EditorState {
   moveTrack: (trackId: string, dir: -1 | 1) => void
   addClipFromMedia: (mediaId: string, atTime?: number) => void
   addTextClip: (content?: string) => void
+  addShapeClip: (kind: 'rect' | 'ellipse' | 'line' | 'arrow') => void
   addCaptions: (cues: { start: number; end: number; text: string }[], offset?: number) => void
   applyTemplate: (template: Template) => void
   updateClip: (clipId: string, patch: Partial<Clip>, coalesceKey?: string) => void
@@ -378,6 +379,28 @@ export const useEditorStore = create<EditorState>((set, get) => {
           tracks: project.tracks.map((t) =>
             t.id === trackId ? { ...t, clips: [...t.clips, clip] } : t,
           ),
+        }
+      })
+    },
+
+    addShapeClip(kind) {
+      mutate((p) => {
+        const { project, trackId } = trackForType(p, 'shape')
+        const clip: Clip = {
+          id: uid(),
+          trackId,
+          type: 'shape',
+          name: kind.charAt(0).toUpperCase() + kind.slice(1),
+          start: get().currentTime,
+          duration: DEFAULT_STILL_DURATION,
+          trimStart: 0,
+          trimEnd: DEFAULT_STILL_DURATION,
+          volume: 1,
+          shape: { ...DEFAULT_SHAPES[kind] },
+        }
+        return {
+          ...project,
+          tracks: project.tracks.map((t) => (t.id === trackId ? { ...t, clips: [...t.clips, clip] } : t)),
         }
       })
     },

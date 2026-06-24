@@ -9,6 +9,7 @@ import {
   Music,
   Type,
   Image as ImageIcon,
+  Shapes,
   Lock,
   Unlock,
   ChevronUp,
@@ -388,6 +389,7 @@ const CLIP_COLORS: Record<Clip['type'], string> = {
   image: 'bg-violet-600/80 border-violet-400',
   audio: 'bg-emerald-600/80 border-emerald-400',
   text: 'bg-amber-500/80 border-amber-300',
+  shape: 'bg-pink-600/80 border-pink-400',
 }
 
 function ClipView({
@@ -407,7 +409,7 @@ function ClipView({
 }) {
   const left = clip.start * pps
   const width = Math.max(8, clip.duration * pps)
-  const ClipIcon = clip.type === 'image' ? ImageIcon : TRACK_ICON[clip.type === 'text' ? 'text' : clip.type === 'audio' ? 'audio' : 'video']
+  const ClipIcon = clip.type === 'image' ? ImageIcon : clip.type === 'shape' ? Shapes : TRACK_ICON[clip.type === 'text' ? 'text' : clip.type === 'audio' ? 'audio' : 'video']
   const asset = useEditorStore((s) => (clip.mediaId ? s.media.find((m) => m.id === clip.mediaId) : undefined))
   const peaks = useWaveform(clip.type === 'audio' ? clip.mediaId : undefined)
   const thumb = asset?.thumbnail
