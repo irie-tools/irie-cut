@@ -24,6 +24,7 @@ import * as storage from '#/lib/storage'
 import { detectMediaType, probeMedia } from '#/lib/media'
 import { getBeats } from '#/lib/beat-detect'
 import { planBeatCut, clipsFromSegments, type BeatCutSource } from '#/lib/beat-cut'
+import { motionKeyframes, type MotionPreset } from '#/lib/motion'
 import { CAPTION_STYLES } from '#/lib/caption-styles'
 import type { Template } from '#/lib/templates'
 
@@ -123,6 +124,7 @@ interface EditorState {
   clearMarkers: () => void
   detectBeats: (clipId: string) => Promise<number>
   pulseToBeats: (coverClipId: string) => Promise<number>
+  applyMotion: (clipId: string, preset: MotionPreset) => Promise<void>
   beatCutToBeats: (clipIds: string[], k?: number) => Promise<number>
   duplicateClip: (clipId: string) => void
   selectClip: (clipId: string | null, additive?: boolean) => void
@@ -824,6 +826,39 @@ export const useEditorStore = create<EditorState>((set, get) => {
         })),
       }))
       return beats.length
+    },
+
+    async applyMotion(clipId, preset) {
+      const project = get().project
+      if (!project) return
+      const found = findClip(project, clipId)
+      if (!found || (found.clip.type !== 'image' && found.clip.type !== 'video')) return
+      const clip = found.clip
+      let beats: number[] = []
+      if (preset === 'beatPulse') {
+        const song = project.tracks.flatMap((t) => t.clips).find((c) => c.type === 'audio' && c.mediaId)
+        if (song?.mediaId) {
+          const blob = await storage.getMediaBlob(song.mediaId)
+          if (blob) {
+            const raw = await getBeats(song.mediaId, blob)
+            // Map the song's beats into this clip's local time.
+            beats = raw
+              .filter((b) => b >= song.trimStart && b <= song.trimEnd)
+              .map((b) => song.start + (b - song.trimStart) - clip.start)
+              .filter((b) => b >= 0 && b <= clip.duration)
+          }
+        }
+      }
+      const kf = motionKeyframes(preset, { duration: clip.duration, beats })
+      mutate((p) => ({
+        ...p,
+        tracks: p.tracks.map((tr) => ({
+          ...tr,
+          clips: tr.clips.map((c) =>
+            c.id === clipId ? { ...c, keyframes: preset === 'none' ? undefined : kf } : c,
+          ),
+        })),
+      }))
     },
 
     async beatCutToBeats(clipIds, k = 2) {

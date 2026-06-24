@@ -26,6 +26,7 @@ import { clipVolumeAt } from '#/lib/audio'
 import { DEFAULT_FX, isNeutralFx } from '#/lib/audio-fx'
 import { getBrandKit, addBrandColor, removeBrandColor, setBrandFont } from '#/lib/brand-kit'
 import { CAPTION_STYLES } from '#/lib/caption-styles'
+import { MOTION_PRESETS } from '#/lib/motion'
 import { BEAT_ROLES, roleLabel } from '#/lib/beats'
 import { TRANSITIONS } from '#/lib/transitions'
 import {
@@ -275,7 +276,7 @@ function BeatCutControls() {
 function TransformControls({ clip }: { clip: Clip }) {
   const clearKeyframes = useEditorStore((s) => s.clearKeyframes)
   const setClipEasing = useEditorStore((s) => s.setClipEasing)
-  const pulseToBeats = useEditorStore((s) => s.pulseToBeats)
+  const applyMotion = useEditorStore((s) => s.applyMotion)
   const hasSong = useEditorStore((s) => s.project?.tracks.some((t) => t.clips.some((c) => c.type === 'audio' && c.mediaId)) ?? false)
   // Subscribe to the playhead so keyframe state + interpolated slider values
   // follow the playhead as it scrubs/plays.
@@ -289,18 +290,33 @@ function TransformControls({ clip }: { clip: Clip }) {
 
   return (
     <>
+      {(clip.type === 'image' || clip.type === 'video') && (
+        <div className="space-y-1.5 pt-1">
+          <Label className="text-xs font-semibold text-foreground">Motion</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {MOTION_PRESETS.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => void applyMotion(clip.id, m.id)}
+                disabled={m.id === 'beatPulse' && !hasSong}
+                className="rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground disabled:opacity-40"
+                title={
+                  m.id === 'beatPulse'
+                    ? 'Punch this clip on each detected beat'
+                    : m.id === 'none'
+                      ? 'Hold still (no motion)'
+                      : `Apply ${m.label} motion`
+                }
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between pt-1">
         <Label className="text-xs font-semibold text-foreground">Transform</Label>
         <div className="flex items-center gap-2">
-          {hasSong && (clip.type === 'image' || clip.type === 'video') && (
-            <button
-              onClick={() => void pulseToBeats(clip.id)}
-              className="text-[10px] text-muted-foreground transition-colors hover:text-foreground"
-              title="Detect the song's beats and punch this clip on each one"
-            >
-              Pulse to beat
-            </button>
-          )}
           {anyKeys && (
             <button
               onClick={() => clearKeyframes(clip.id)}

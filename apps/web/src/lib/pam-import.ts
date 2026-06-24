@@ -10,6 +10,7 @@ import * as storage from '#/lib/storage'
 import { probeMedia } from '#/lib/media'
 import { getBeats } from '#/lib/beat-detect'
 import { planBeatCut, clipsFromSegments, sequentialClips, type BeatCutSource } from '#/lib/beat-cut'
+import { motionKeyframes } from '#/lib/motion'
 
 export interface PromoBundle {
   iriePromo: 1
@@ -164,16 +165,14 @@ export async function buildPromoProject(json: string): Promise<string> {
   // --- Visuals track: hero (1 image) / beat-cut (song) / sequential (no song) ---
   let videoClips: Clip[]
   if (sources.length === 1 && sources[0].type === 'image') {
-    // Cover hero with a slow Ken-Burns push + drift (the Phase 1/6 keyframe engine).
+    // Single cover → a cinematic, multi-phase Ken-Burns that stays visibly in
+    // motion across the whole song (not one imperceptible zoom over 3 minutes).
     videoClips = [
       {
         id: uid(), trackId: videoTrackId, type: 'image', name: 'Cover', mediaId: sources[0].mediaId,
         start: 0, duration, trimStart: 0, trimEnd: duration, volume: 1, fit: 'cover',
         transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
-        keyframes: {
-          scale: [{ t: 0, value: 1, ease: 'inout' }, { t: duration, value: 1.12 }],
-          x: [{ t: 0, value: 0, ease: 'inout' }, { t: duration, value: 0.04 }],
-        },
+        keyframes: motionKeyframes('cinematic', { duration }),
       },
     ]
   } else if (audioId && audioBlob) {
