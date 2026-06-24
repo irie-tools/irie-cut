@@ -19,7 +19,7 @@
 
 @theme inline {
     --font-heading: 'Cormorant Garamond', serif;
-    --font-sans: 'DM Sans Variable', 'DM Sans', sans-serif;
+    --font-sans: 'Space Grotesk Variable', 'DM Sans Variable', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -103,31 +103,31 @@
     --card-foreground: #f2ede4;
     --popover: #161514;
     --popover-foreground: #f2ede4;
-    --primary: #c9a84c;
-    --primary-foreground: #1a1a1a;
-    --secondary: #242220;
+    --primary: #25c281;
+    --primary-foreground: #07140d;
+    --secondary: #221f1d;
     --secondary-foreground: #f2ede4;
-    --muted: #242220;
+    --muted: #221f1d;
     --muted-foreground: rgba(242, 237, 228, 0.56);
-    --accent: #2a2826;
+    --accent: #292724;
     --accent-foreground: #f5f1e8;
     --destructive: oklch(0.62 0.2 25);
     --border: rgba(242, 237, 228, 0.1);
     --input: rgba(242, 237, 228, 0.14);
-    --ring: #c9a84c;
-    --chart-1: #c9a84c;
-    --chart-2: #e8c96a;
-    --chart-3: #a68838;
-    --chart-4: #b98b3a;
-    --chart-5: #8a6f2e;
-    --sidebar: #121110;
+    --ring: #25c281;
+    --chart-1: #25c281;
+    --chart-2: #f4b829;
+    --chart-3: #ff5236;
+    --chart-4: #1fa86f;
+    --chart-5: #e8c96a;
+    --sidebar: #111110;
     --sidebar-foreground: #f2ede4;
-    --sidebar-primary: #c9a84c;
-    --sidebar-primary-foreground: #1a1a1a;
-    --sidebar-accent: #2a2826;
+    --sidebar-primary: #25c281;
+    --sidebar-primary-foreground: #07140d;
+    --sidebar-accent: #292724;
     --sidebar-accent-foreground: #f5f1e8;
     --sidebar-border: rgba(242, 237, 228, 0.1);
-    --sidebar-ring: #c9a84c;
+    --sidebar-ring: #25c281;
 }
 
 /* Gold-glow on primary CTA hover — the family signature depth moment (primary only). */

@@ -195,7 +195,7 @@ function ProjectsInner() {
               <Upload className="size-4" /> {importing ? 'Importing…' : 'Project file'}
             </Button>
             <span className="mx-1 hidden h-5 w-px bg-border sm:inline-block" />
-            <Button className="gold-glow" onClick={() => setOpen(true)}>
+            <Button className="energy-cta font-display tracking-wider" onClick={() => setOpen(true)}>
               <Plus className="size-4" /> New project
             </Button>
           </div>
@@ -204,10 +204,10 @@ function ProjectsInner() {
 
       <main className="mx-auto max-w-6xl px-6 py-10">
         <div className="mb-7">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary/90">
+          <p className="font-display text-sm uppercase tracking-[0.22em] text-primary">
             Your cutting room
           </p>
-          <h1 className="mt-1 font-heading text-3xl font-semibold sm:text-4xl">Your projects</h1>
+          <h1 className="font-display mt-1 text-4xl leading-[0.95] sm:text-5xl">Your projects</h1>
         </div>
 
         {loading ? (
@@ -217,7 +217,7 @@ function ProjectsInner() {
             <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-primary/10">
               <Film className="size-7 text-primary" />
             </div>
-            <p className="font-heading text-2xl font-semibold">Nothing cut yet</p>
+            <p className="font-display text-3xl">Nothing cut yet</p>
             <p className="mt-2 max-w-sm text-sm text-muted-foreground">
               Start fresh, or bring a song and visuals in from Pam or Video Studio — they land ready
               to cut to the beat.
