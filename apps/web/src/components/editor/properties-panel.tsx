@@ -125,6 +125,18 @@ function ClipProps({ clip }: { clip: Clip }) {
 
       {clip.type === 'shape' && clip.shape && <ShapeProps clip={clip} shape={clip.shape} />}
 
+      {(clip.type === 'video' || clip.type === 'image') && (
+        <Row label="Fit">
+          <div className="flex gap-1">
+            {(['contain', 'cover'] as const).map((f) => (
+              <Toggle key={f} active={(clip.fit ?? 'contain') === f} onClick={() => updateClip(clip.id, { fit: f })}>
+                <span className="px-2 text-xs capitalize">{f}</span>
+              </Toggle>
+            ))}
+          </div>
+        </Row>
+      )}
+
       {(clip.type === 'video' || clip.type === 'image' || clip.type === 'shape') && <TransformControls clip={clip} />}
 
       {(clip.type === 'video' || clip.type === 'image') && (
@@ -948,16 +960,45 @@ function TextProps({ clip, text }: { clip: Clip; text: TextProperties }) {
   )
 }
 
+const REFRAME_PRESETS: { label: string; w: number; h: number }[] = [
+  { label: '16:9', w: 1920, h: 1080 },
+  { label: '9:16', w: 1080, h: 1920 },
+  { label: '1:1', w: 1080, h: 1080 },
+  { label: '4:5', w: 1080, h: 1350 },
+]
+
 function ProjectProps() {
   const project = useEditorStore((s) => s.project)
   const updateProject = useEditorStore((s) => s.updateProject)
+  const reframe = useEditorStore((s) => s.reframe)
   if (!project) return null
+  const ratio = project.width / project.height
   return (
     <>
       <Row label="Resolution">
         <div className="text-sm text-muted-foreground">
           {project.width} × {project.height} · {project.fps}fps
         </div>
+      </Row>
+      <Row label="Auto-reframe">
+        <div className="grid grid-cols-4 gap-1.5">
+          {REFRAME_PRESETS.map((r) => {
+            const active = Math.abs(r.w / r.h - ratio) < 0.01
+            return (
+              <button
+                key={r.label}
+                onClick={() => reframe(r.w, r.h)}
+                className={cn(
+                  'rounded-md border py-1.5 text-xs transition-colors',
+                  active ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {r.label}
+              </button>
+            )
+          })}
+        </div>
+        <p className="pt-1 text-[10px] text-muted-foreground">Changes the canvas aspect and fills clips to cover the new frame.</p>
       </Row>
       <Row label="Background">
         <input

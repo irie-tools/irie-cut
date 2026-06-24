@@ -123,6 +123,8 @@ export interface Clip {
   transitionOut?: { type: string; duration: number }
   /** Playback rate for video/audio clips (1 = normal). */
   speed?: number
+  /** How the source fills the frame: 'contain' (letterbox) or 'cover' (fill+crop). Default contain. */
+  fit?: 'contain' | 'cover'
   /** Visual transform for video/image clips. */
   transform?: { x: number; y: number; scale: number; rotation: number; opacity: number }
   /**

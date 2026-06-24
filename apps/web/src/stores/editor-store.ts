@@ -79,6 +79,7 @@ interface EditorState {
   loadProject: (id: string) => Promise<void>
   closeProject: () => void
   updateProject: (patch: Partial<Project>, coalesceKey?: string) => void
+  reframe: (width: number, height: number) => void
   undo: () => void
   redo: () => void
 
@@ -253,6 +254,19 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     updateProject(patch, coalesceKey) {
       mutate((p) => ({ ...p, ...patch }), coalesceKey)
+    },
+
+    reframe(width, height) {
+      // Switch the canvas aspect and set visual clips to cover the new frame.
+      mutate((p) => ({
+        ...p,
+        width,
+        height,
+        tracks: p.tracks.map((t) => ({
+          ...t,
+          clips: t.clips.map((c) => (c.type === 'video' || c.type === 'image' ? { ...c, fit: 'cover' } : c)),
+        })),
+      }))
     },
 
     async importFiles(files) {

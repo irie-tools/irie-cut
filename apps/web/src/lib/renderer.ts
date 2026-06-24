@@ -100,6 +100,20 @@ function containBox(srcW: number, srcH: number, dstW: number, dstH: number) {
   return { x: (dstW - w) / 2, y: (dstH - h) / 2, w, h }
 }
 
+/** Scale `srcW x srcH` to cover `dstW x dstH` (fill + crop), returning a centred box. */
+function coverBox(srcW: number, srcH: number, dstW: number, dstH: number) {
+  if (!srcW || !srcH) return { x: 0, y: 0, w: dstW, h: dstH }
+  const scale = Math.max(dstW / srcW, dstH / srcH)
+  const w = srcW * scale
+  const h = srcH * scale
+  return { x: (dstW - w) / 2, y: (dstH - h) / 2, w, h }
+}
+
+/** Fit box for a clip, honoring its `fit` mode (default contain). */
+function fitBox(clip: Clip, srcW: number, srcH: number, W: number, H: number) {
+  return (clip.fit === 'cover' ? coverBox : containBox)(srcW, srcH, W, H)
+}
+
 /**
  * Apply a clip's effective transform (position/scale/rotation/opacity) at
  * `time`, resolving keyframe animation via `transformAt`. Caller must ctx.save()
@@ -288,13 +302,13 @@ export function drawFrame(
       if (clip.type === 'video') {
         const el = sources.getVideo(clip.id)
         if (el && el.readyState >= 2 && el.videoWidth) {
-          const box = containBox(el.videoWidth, el.videoHeight, W, H)
+          const box = fitBox(clip, el.videoWidth, el.videoHeight, W, H)
           compositeMedia(ctx, clip, el, el.videoWidth, el.videoHeight, box, time, W, H)
         }
       } else if (clip.type === 'image' && clip.mediaId) {
         const el = sources.getImage(clip.mediaId)
         if (el && el.complete && el.naturalWidth) {
-          const box = containBox(el.naturalWidth, el.naturalHeight, W, H)
+          const box = fitBox(clip, el.naturalWidth, el.naturalHeight, W, H)
           compositeMedia(ctx, clip, el, el.naturalWidth, el.naturalHeight, box, time, W, H)
         }
       } else if (clip.type === 'shape' && clip.shape) {
