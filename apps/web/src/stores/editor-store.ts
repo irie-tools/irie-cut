@@ -23,6 +23,7 @@ import {
 import * as storage from '#/lib/storage'
 import { detectMediaType, probeMedia } from '#/lib/media'
 import { getBeats } from '#/lib/beat-detect'
+import { CAPTION_STYLES } from '#/lib/caption-styles'
 import type { Template } from '#/lib/templates'
 
 export const PX_PER_SECOND_BASE = 50
@@ -108,6 +109,7 @@ interface EditorState {
   clearKeyframes: (clipId: string, prop?: KeyframeProp) => void
   setClipEasing: (clipId: string, ease: Easing) => void
   applyTextPreset: (clipId: string, preset: 'none' | 'fade' | 'pop' | 'slide' | 'typewriter') => void
+  applyCaptionStyle: (trackId: string, styleId: string) => void
   setVolumeKeyframe: (clipId: string, t: number, value: number, coalesceKey?: string) => void
   removeVolumeKeyframe: (clipId: string, t: number) => void
   clearVolumeKeyframes: (clipId: string) => void
@@ -624,6 +626,40 @@ export const useEditorStore = create<EditorState>((set, get) => {
           }),
         })),
       }))
+    },
+
+    applyCaptionStyle(trackId, styleId) {
+      const style = CAPTION_STYLES.find((s) => s.id === styleId)
+      if (!style) return
+      mutate((p) => {
+        const built = style.build(p.height)
+        return {
+          ...p,
+          tracks: p.tracks.map((t) => {
+            if (t.id !== trackId) return t
+            return {
+              ...t,
+              clips: t.clips.map((c) => {
+                if (c.type !== 'text' || !c.text) return c
+                const text = { ...c.text, ...built.text }
+                const D = c.duration
+                let keyframes: Clip['keyframes']
+                if (built.preset === 'pop') {
+                  keyframes = {
+                    scale: [{ t: 0, value: 0.7 }, { t: Math.min(0.18, D * 0.3), value: 1.08 }, { t: Math.min(0.34, D * 0.5), value: 1 }],
+                    opacity: [{ t: 0, value: 0 }, { t: Math.min(0.14, D * 0.25), value: 1 }],
+                  }
+                } else if (built.preset === 'fade') {
+                  keyframes = { opacity: [{ t: 0, value: 0 }, { t: Math.min(0.25, D * 0.3), value: 1 }] }
+                } else {
+                  keyframes = undefined
+                }
+                return { ...c, text, keyframes }
+              }),
+            }
+          }),
+        }
+      })
     },
 
     applyTextPreset(clipId, preset) {

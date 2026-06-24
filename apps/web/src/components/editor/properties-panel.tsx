@@ -25,6 +25,7 @@ import { FONT_OPTIONS, normalizeFont } from '#/lib/fonts'
 import { clipVolumeAt } from '#/lib/audio'
 import { DEFAULT_FX, isNeutralFx } from '#/lib/audio-fx'
 import { getBrandKit, addBrandColor, removeBrandColor, setBrandFont } from '#/lib/brand-kit'
+import { CAPTION_STYLES } from '#/lib/caption-styles'
 import { BEAT_ROLES, roleLabel } from '#/lib/beats'
 import { TRANSITIONS } from '#/lib/transitions'
 import {
@@ -816,11 +817,25 @@ const TEXT_PRESETS: { id: 'fade' | 'pop' | 'slide' | 'typewriter'; label: string
 function TextProps({ clip, text }: { clip: Clip; text: TextProperties }) {
   const updateClip = useEditorStore((s) => s.updateClip)
   const applyTextPreset = useEditorStore((s) => s.applyTextPreset)
+  const applyCaptionStyle = useEditorStore((s) => s.applyCaptionStyle)
   const set = (patch: Partial<TextProperties>, coalesceKey?: string) =>
     updateClip(clip.id, { text: { ...text, ...patch } }, coalesceKey)
 
   return (
     <>
+      <Row label="Caption style (whole track)">
+        <div className="grid grid-cols-2 gap-1.5">
+          {CAPTION_STYLES.map((cs) => (
+            <button
+              key={cs.id}
+              onClick={() => applyCaptionStyle(clip.trackId, cs.id)}
+              className="rounded-md border border-border px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+            >
+              {cs.label}
+            </button>
+          ))}
+        </div>
+      </Row>
       <Row label="Animation">
         <div className="grid grid-cols-2 gap-1.5">
           {TEXT_PRESETS.map((p) => (
