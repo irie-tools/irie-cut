@@ -43,7 +43,11 @@ function blobToBase64(blob: Blob): Promise<string> {
   })
 }
 
-export async function transcribe(blob: Blob): Promise<{ cues: Cue[] }> {
+export async function transcribe(blob: Blob): Promise<{ cues: Cue[]; words: Cue[] }> {
   const audioBase64 = await blobToBase64(blob)
-  return postJson('/api/ai-transcribe', { audioBase64, mimeType: blob.type })
+  const out = await postJson<{ cues: Cue[]; words?: Cue[] }>('/api/ai-transcribe', {
+    audioBase64,
+    mimeType: blob.type,
+  })
+  return { cues: out.cues ?? [], words: out.words ?? [] }
 }

@@ -153,12 +153,18 @@ function AutoCaptions() {
   const selectedClipId = useEditorStore((s) => s.selectedClipId)
   const project = useEditorStore((s) => s.project)
   const addCaptions = useEditorStore((s) => s.addCaptions)
+  const resyncCaptions = useEditorStore((s) => s.resyncCaptions)
   const [loading, setLoading] = useState(false)
+  const [resyncing, setResyncing] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState('')
 
   const clip = project?.tracks.flatMap((t) => t.clips).find((c) => c.id === selectedClipId)
   const eligible = clip && (clip.type === 'video' || clip.type === 'audio') && clip.mediaId
+  const hasSong = project?.tracks.some((t) => t.clips.some((c) => c.type === 'audio' && c.mediaId)) ?? false
+  const hasCaptions =
+    project?.tracks.some((t) => t.type === 'text' && t.clips.some((c) => c.type === 'text' && c.text?.content?.trim())) ??
+    false
 
   async function run() {
     if (!clip?.mediaId) return
@@ -178,15 +184,48 @@ function AutoCaptions() {
     }
   }
 
+  async function runResync() {
+    setResyncing(true)
+    setError('')
+    setDone('')
+    try {
+      const n = await resyncCaptions()
+      setDone(`Re-synced ${n} line(s) to the audio — karaoke on.`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Re-sync failed')
+    } finally {
+      setResyncing(false)
+    }
+  }
+
   return (
     <Section icon={CaptionsIcon} title="Auto-captions">
       <p className="text-[11px] text-muted-foreground">
         {eligible ? 'Transcribe the selected clip into timed captions.' : 'Select a video or audio clip first.'}
       </p>
-      <Button size="sm" className="w-full" onClick={run} disabled={loading || !eligible}>
+      <Button size="sm" className="w-full" onClick={run} disabled={loading || resyncing || !eligible}>
         {loading ? <Loader2 className="size-4 animate-spin" /> : <CaptionsIcon className="size-4" />}
         Transcribe clip
       </Button>
+
+      {hasCaptions && (
+        <>
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            Lyrics lagging? Snap your existing captions to the actual vocal and turn on word-by-word
+            karaoke.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full"
+            onClick={runResync}
+            disabled={resyncing || loading || !hasSong}
+          >
+            {resyncing ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+            Re-sync captions to the music
+          </Button>
+        </>
+      )}
       {error && <p className="text-[11px] text-destructive">{error}</p>}
       {done && <p className="text-[11px] text-emerald-500">{done}</p>}
     </Section>

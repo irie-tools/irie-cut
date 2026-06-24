@@ -24,6 +24,9 @@ export default async function handler(req: any, res: any) {
     form.append('file', new Blob([bytes], { type: mimeType || 'audio/mp4' }), 'audio')
     form.append('model', model)
     form.append('response_format', 'verbose_json')
+    // Ask for both phrase- and word-level timing (word timing powers karaoke + re-sync).
+    form.append('timestamp_granularities[]', 'segment')
+    form.append('timestamp_granularities[]', 'word')
 
     const r = await fetch(`${base}/audio/transcriptions`, {
       method: 'POST',
@@ -34,9 +37,13 @@ export default async function handler(req: any, res: any) {
     const data = await r.json()
     const segments = (data?.segments ?? []) as { start: number; end: number; text: string }[]
     const cues = segments.map((s) => ({ start: s.start, end: s.end, text: (s.text || '').trim() })).filter((c) => c.text)
+    const rawWords = (data?.words ?? []) as { start: number; end: number; word: string }[]
+    const words = rawWords
+      .map((w) => ({ start: w.start, end: w.end, text: (w.word || '').trim() }))
+      .filter((w) => w.text && Number.isFinite(w.start) && Number.isFinite(w.end))
     // Fall back to a single cue if the provider returned only plain text.
     if (!cues.length && data?.text) cues.push({ start: 0, end: 0, text: String(data.text).trim() })
-    return res.status(200).json({ cues })
+    return res.status(200).json({ cues, words })
   } catch (e) {
     return res.status(502).json({ error: 'Transcription failed', detail: String(e) })
   }

@@ -72,6 +72,12 @@ export interface TextProperties {
   reveal?: number
   /** When set, reveal animates over time (typewriter effect) instead of using `reveal`. */
   typewriter?: boolean
+  /** Karaoke: highlight each word as it's sung (needs `words`). */
+  karaoke?: boolean
+  /** Highlight colour for already-sung words in karaoke mode. */
+  karaokeColor?: string
+  /** Per-word timing in clip-local seconds, for karaoke highlighting. */
+  words?: { start: number; end: number; text: string }[]
 }
 
 /** Default geometry for a newly-added shape clip. */

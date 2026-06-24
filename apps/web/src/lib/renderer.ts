@@ -277,10 +277,35 @@ function drawText(ctx: CanvasRenderingContext2D, clip: Clip, localTime: number, 
     ctx.shadowColor = 'transparent'
   }
 
-  ctx.fillStyle = t.color
-  lines.forEach((line, i) => {
-    ctx.fillText(line, cx, startY + i * lineHeight)
-  })
+  if (t.karaoke && t.words?.length) {
+    // Karaoke: whole line stays visible, each word lights up as it's sung.
+    const highlight = t.karaokeColor || '#25c281'
+    const space = ctx.measureText(' ').width
+    const prevAlign = ctx.textAlign
+    ctx.textAlign = 'left'
+    let wi = 0
+    lines.forEach((line, li) => {
+      const lineWords = line.split(/\s+/).filter(Boolean)
+      const widths = lineWords.map((w) => ctx.measureText(w).width)
+      const lineW = widths.reduce((a, c) => a + c, 0) + space * Math.max(0, lineWords.length - 1)
+      let x = cx
+      if (t.align === 'center') x = cx - lineW / 2
+      else if (t.align === 'right') x = cx - lineW
+      const y = startY + li * lineHeight
+      lineWords.forEach((word, k) => {
+        const wt = t.words![wi++]
+        ctx.fillStyle = wt && localTime >= wt.start ? highlight : t.color
+        ctx.fillText(word, x, y)
+        x += widths[k] + space
+      })
+    })
+    ctx.textAlign = prevAlign
+  } else {
+    ctx.fillStyle = t.color
+    lines.forEach((line, i) => {
+      ctx.fillText(line, cx, startY + i * lineHeight)
+    })
+  }
 }
 
 export function drawFrame(
