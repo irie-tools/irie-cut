@@ -16,6 +16,7 @@ import {
 import { FILTER_PRESETS } from '#/lib/filters'
 import { DEFAULT_ADJUST, isNeutralAdjust } from '#/lib/adjust'
 import { BLEND_MODES, blendOp } from '#/lib/blend'
+import { DEFAULT_MASK, MASK_SHAPES } from '#/lib/mask'
 import { BEAT_ROLES, roleLabel } from '#/lib/beats'
 import { TRANSITIONS } from '#/lib/transitions'
 import {
@@ -171,6 +172,8 @@ function ClipProps({ clip }: { clip: Clip }) {
           </Select>
         </Row>
       )}
+
+      {(clip.type === 'video' || clip.type === 'image') && <MaskControls clip={clip} />}
 
       {clip.type !== 'audio' && <TransitionControls clip={clip} />}
 
@@ -381,6 +384,76 @@ function AdjustControls({ clip }: { clip: Clip }) {
           />
         </Row>
       ))}
+    </>
+  )
+}
+
+function MaskControls({ clip }: { clip: Clip }) {
+  const updateClip = useEditorStore((s) => s.updateClip)
+  const mask = clip.mask
+  const set = (patch: Partial<NonNullable<Clip['mask']>>, key: string) =>
+    updateClip(clip.id, { mask: { ...DEFAULT_MASK, ...(mask ?? {}), ...patch } }, `mask:${key}:${clip.id}`)
+
+  return (
+    <>
+      <div className="flex items-center justify-between pt-1">
+        <Label className="text-xs font-semibold text-foreground">Mask</Label>
+        <button
+          onClick={() => updateClip(clip.id, { mask: mask ? undefined : { ...DEFAULT_MASK } })}
+          className="text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {mask ? 'Remove' : 'Add'}
+        </button>
+      </div>
+      {mask && (
+        <>
+          <Row label="Shape">
+            <Select value={mask.shape} onValueChange={(v) => set({ shape: (v as 'rect' | 'ellipse' | 'linear') ?? 'rect' }, 'shape')}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MASK_SHAPES.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Row>
+          <div className="flex gap-3">
+            <Row label={`X · ${Math.round(mask.x * 100)}%`}>
+              <Slider value={[mask.x]} min={0} max={1} step={0.01} onValueChange={(v) => set({ x: sv(v) }, 'x')} />
+            </Row>
+            <Row label={`Y · ${Math.round(mask.y * 100)}%`}>
+              <Slider value={[mask.y]} min={0} max={1} step={0.01} onValueChange={(v) => set({ y: sv(v) }, 'y')} />
+            </Row>
+          </div>
+          {mask.shape !== 'linear' && (
+            <div className="flex gap-3">
+              <Row label={`Width · ${Math.round(mask.w * 100)}%`}>
+                <Slider value={[mask.w]} min={0.02} max={1} step={0.01} onValueChange={(v) => set({ w: sv(v) }, 'w')} />
+              </Row>
+              <Row label={`Height · ${Math.round(mask.h * 100)}%`}>
+                <Slider value={[mask.h]} min={0.02} max={1} step={0.01} onValueChange={(v) => set({ h: sv(v) }, 'h')} />
+              </Row>
+            </div>
+          )}
+          {mask.shape === 'linear' && (
+            <Row label={`Angle · ${Math.round(mask.angle ?? 0)}°`}>
+              <Slider value={[mask.angle ?? 0]} min={0} max={360} step={1} onValueChange={(v) => set({ angle: sv(v) }, 'angle')} />
+            </Row>
+          )}
+          <Row label={`Feather · ${Math.round((mask.feather ?? 0) * 100)}%`}>
+            <Slider value={[mask.feather ?? 0]} min={0} max={1} step={0.01} onValueChange={(v) => set({ feather: sv(v) }, 'feather')} />
+          </Row>
+          <Row label="Invert">
+            <Toggle active={!!mask.invert} onClick={() => set({ invert: !mask.invert }, 'invert')}>
+              <span className="px-2 text-xs">{mask.invert ? 'Inverted' : 'Normal'}</span>
+            </Toggle>
+          </Row>
+        </>
+      )}
     </>
   )
 }

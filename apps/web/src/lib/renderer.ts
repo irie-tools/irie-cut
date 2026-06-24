@@ -6,8 +6,20 @@ import type { Clip, Project } from '#/types/editor'
 import { filterCss } from '#/lib/filters'
 import { adjustCss } from '#/lib/adjust'
 import { blendOp } from '#/lib/blend'
+import { applyClipMask } from '#/lib/mask'
 import { transitionModifier, type TransitionModifier } from '#/lib/transitions'
 import { transformAt } from '#/lib/keyframes'
+
+/** Reused offscreen layer for clip-local compositing (masks). Sized to the project. */
+let scratch: HTMLCanvasElement | null = null
+function getScratch(W: number, H: number): HTMLCanvasElement {
+  if (!scratch) scratch = document.createElement('canvas')
+  if (scratch.width !== W || scratch.height !== H) {
+    scratch.width = W
+    scratch.height = H
+  }
+  return scratch
+}
 
 /** Combined canvas `filter` for a clip: color-grade preset + per-clip adjustments. */
 function effectiveFilter(clip: Clip): string {
@@ -29,6 +41,28 @@ function compositeMedia(
   W: number,
   H: number,
 ) {
+  if (clip.mask) {
+    // Layered path: draw + mask in a clip-local layer, then composite with blend
+    // so the mask only erases this clip (not the tracks beneath it).
+    const layer = getScratch(W, H)
+    const lctx = layer.getContext('2d')!
+    lctx.clearRect(0, 0, W, H)
+    lctx.save()
+    applyClipTransform(lctx, clip, time, W, H)
+    applyTransition(lctx, transitionModifier(clip, time), W, H)
+    lctx.filter = effectiveFilter(clip)
+    lctx.globalCompositeOperation = 'source-over'
+    lctx.drawImage(el, box.x, box.y, box.w, box.h)
+    lctx.restore()
+    applyClipMask(lctx, clip.mask, W, H)
+
+    ctx.save()
+    ctx.globalCompositeOperation = blendOp(clip.blend)
+    ctx.drawImage(layer, 0, 0)
+    ctx.restore()
+    return
+  }
+
   ctx.save()
   applyClipTransform(ctx, clip, time, W, H)
   applyTransition(ctx, transitionModifier(clip, time), W, H)
