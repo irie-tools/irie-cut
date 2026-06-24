@@ -7,6 +7,7 @@ import { filterCss } from '#/lib/filters'
 import { adjustCss } from '#/lib/adjust'
 import { blendOp } from '#/lib/blend'
 import { applyClipMask } from '#/lib/mask'
+import { chromaKey } from '#/lib/chroma'
 import { transitionModifier, type TransitionModifier } from '#/lib/transitions'
 import { transformAt } from '#/lib/keyframes'
 
@@ -36,11 +37,20 @@ function compositeMedia(
   ctx: CanvasRenderingContext2D,
   clip: Clip,
   el: CanvasImageSource,
+  srcW: number,
+  srcH: number,
   box: { x: number; y: number; w: number; h: number },
   time: number,
   W: number,
   H: number,
 ) {
+  // Chroma key first (GPU pass) — the keyed canvas then composites like any source.
+  let drawable: CanvasImageSource = el
+  if (clip.chroma) {
+    const keyed = chromaKey(el, srcW, srcH, clip.chroma)
+    if (keyed) drawable = keyed
+  }
+
   if (clip.mask) {
     // Layered path: draw + mask in a clip-local layer, then composite with blend
     // so the mask only erases this clip (not the tracks beneath it).
@@ -52,7 +62,7 @@ function compositeMedia(
     applyTransition(lctx, transitionModifier(clip, time), W, H)
     lctx.filter = effectiveFilter(clip)
     lctx.globalCompositeOperation = 'source-over'
-    lctx.drawImage(el, box.x, box.y, box.w, box.h)
+    lctx.drawImage(drawable, box.x, box.y, box.w, box.h)
     lctx.restore()
     applyClipMask(lctx, clip.mask, W, H)
 
@@ -68,7 +78,7 @@ function compositeMedia(
   applyTransition(ctx, transitionModifier(clip, time), W, H)
   ctx.filter = effectiveFilter(clip)
   ctx.globalCompositeOperation = blendOp(clip.blend)
-  ctx.drawImage(el, box.x, box.y, box.w, box.h)
+  ctx.drawImage(drawable, box.x, box.y, box.w, box.h)
   ctx.restore()
 }
 
@@ -183,13 +193,13 @@ export function drawFrame(
         const el = sources.getVideo(clip.id)
         if (el && el.readyState >= 2 && el.videoWidth) {
           const box = containBox(el.videoWidth, el.videoHeight, W, H)
-          compositeMedia(ctx, clip, el, box, time, W, H)
+          compositeMedia(ctx, clip, el, el.videoWidth, el.videoHeight, box, time, W, H)
         }
       } else if (clip.type === 'image' && clip.mediaId) {
         const el = sources.getImage(clip.mediaId)
         if (el && el.complete && el.naturalWidth) {
           const box = containBox(el.naturalWidth, el.naturalHeight, W, H)
-          compositeMedia(ctx, clip, el, box, time, W, H)
+          compositeMedia(ctx, clip, el, el.naturalWidth, el.naturalHeight, box, time, W, H)
         }
       }
     }

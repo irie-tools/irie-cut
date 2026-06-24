@@ -17,6 +17,7 @@ import { FILTER_PRESETS } from '#/lib/filters'
 import { DEFAULT_ADJUST, isNeutralAdjust } from '#/lib/adjust'
 import { BLEND_MODES, blendOp } from '#/lib/blend'
 import { DEFAULT_MASK, MASK_SHAPES } from '#/lib/mask'
+import { DEFAULT_CHROMA } from '#/lib/chroma'
 import { BEAT_ROLES, roleLabel } from '#/lib/beats'
 import { TRANSITIONS } from '#/lib/transitions'
 import {
@@ -172,6 +173,8 @@ function ClipProps({ clip }: { clip: Clip }) {
           </Select>
         </Row>
       )}
+
+      {(clip.type === 'video' || clip.type === 'image') && <ChromaControls clip={clip} />}
 
       {(clip.type === 'video' || clip.type === 'image') && <MaskControls clip={clip} />}
 
@@ -384,6 +387,48 @@ function AdjustControls({ clip }: { clip: Clip }) {
           />
         </Row>
       ))}
+    </>
+  )
+}
+
+function ChromaControls({ clip }: { clip: Clip }) {
+  const updateClip = useEditorStore((s) => s.updateClip)
+  const chroma = clip.chroma
+  const set = (patch: Partial<NonNullable<Clip['chroma']>>, key: string) =>
+    updateClip(clip.id, { chroma: { ...DEFAULT_CHROMA, ...(chroma ?? {}), ...patch } }, `chroma:${key}:${clip.id}`)
+
+  return (
+    <>
+      <div className="flex items-center justify-between pt-1">
+        <Label className="text-xs font-semibold text-foreground">Chroma key</Label>
+        <button
+          onClick={() => updateClip(clip.id, { chroma: chroma ? undefined : { ...DEFAULT_CHROMA } })}
+          className="text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {chroma ? 'Remove' : 'Add'}
+        </button>
+      </div>
+      {chroma && (
+        <>
+          <Row label="Key color">
+            <input
+              type="color"
+              value={chroma.color}
+              onChange={(e) => set({ color: e.target.value }, 'color')}
+              className="h-9 w-full cursor-pointer rounded-md border border-border bg-background"
+            />
+          </Row>
+          <Row label={`Similarity · ${Math.round(chroma.similarity * 100)}%`}>
+            <Slider value={[chroma.similarity]} min={0.01} max={1} step={0.01} onValueChange={(v) => set({ similarity: sv(v) }, 'sim')} />
+          </Row>
+          <Row label={`Smoothness · ${Math.round(chroma.smoothness * 100)}%`}>
+            <Slider value={[chroma.smoothness]} min={0} max={0.5} step={0.01} onValueChange={(v) => set({ smoothness: sv(v) }, 'smo')} />
+          </Row>
+          <Row label={`Spill suppress · ${Math.round(chroma.spill * 100)}%`}>
+            <Slider value={[chroma.spill]} min={0} max={1} step={0.01} onValueChange={(v) => set({ spill: sv(v) }, 'spl')} />
+          </Row>
+        </>
+      )}
     </>
   )
 }
