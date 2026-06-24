@@ -33,12 +33,13 @@ export function Editor({ projectId }: { projectId: string }) {
   // Global keyboard shortcuts.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      const target = e.target as HTMLElement
+      const target = e.target as HTMLElement | null
       if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable ||
-        target.closest('[role="slider"]')
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable ||
+          target.closest('[role="slider"]'))
       )
         return
       const s = useEditorStore.getState()
@@ -54,6 +55,22 @@ export function Editor({ projectId }: { projectId: string }) {
         s.redo()
         return
       }
+      if (mod && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault()
+        s.copySelection()
+        return
+      }
+      if (mod && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault()
+        s.pasteClipboard()
+        return
+      }
+      if (mod && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault()
+        if (s.selectedClipId) s.duplicateClip(s.selectedClipId)
+        return
+      }
+      const frame = 1 / (project?.fps ?? 30)
       if (e.code === 'Space') {
         e.preventDefault()
         s.togglePlay()
@@ -62,14 +79,25 @@ export function Editor({ projectId }: { projectId: string }) {
       } else if (e.key === 'm' || e.key === 'M') {
         s.addMarker(s.currentTime)
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (s.selectedClipId) {
+        if (s.selectedClipIds.length) {
           e.preventDefault()
-          s.deleteClip(s.selectedClipId)
+          s.deleteSelection()
         }
       } else if (e.key === 'ArrowRight') {
-        s.setCurrentTime(s.currentTime + (e.shiftKey ? 1 : 1 / (project?.fps ?? 30)))
+        // Alt+Arrow nudges the selected clip(s); otherwise step the playhead.
+        if (e.altKey && s.selectedClipIds.length) {
+          e.preventDefault()
+          s.nudgeSelection(e.shiftKey ? frame * 10 : frame)
+        } else {
+          s.setCurrentTime(s.currentTime + (e.shiftKey ? 1 : frame))
+        }
       } else if (e.key === 'ArrowLeft') {
-        s.setCurrentTime(s.currentTime - (e.shiftKey ? 1 : 1 / (project?.fps ?? 30)))
+        if (e.altKey && s.selectedClipIds.length) {
+          e.preventDefault()
+          s.nudgeSelection(e.shiftKey ? -frame * 10 : -frame)
+        } else {
+          s.setCurrentTime(s.currentTime - (e.shiftKey ? 1 : frame))
+        }
       }
     }
     window.addEventListener('keydown', onKey)

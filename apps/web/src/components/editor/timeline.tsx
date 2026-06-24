@@ -37,6 +37,7 @@ export function Timeline() {
   const currentTime = useEditorStore((s) => s.currentTime)
   const setCurrentTime = useEditorStore((s) => s.setCurrentTime)
   const selectedClipId = useEditorStore((s) => s.selectedClipId)
+  const selectedClipIds = useEditorStore((s) => s.selectedClipIds)
   const selectClip = useEditorStore((s) => s.selectClip)
   const splitAtPlayhead = useEditorStore((s) => s.splitAtPlayhead)
   const deleteClip = useEditorStore((s) => s.deleteClip)
@@ -163,7 +164,7 @@ export function Timeline() {
                   key={track.id}
                   track={track}
                   pps={pps}
-                  selectedClipId={selectedClipId}
+                  selectedClipIds={selectedClipIds}
                   onSelect={selectClip}
                   timeFromEvent={timeFromEvent}
                   onSnap={setSnapTime}
@@ -340,15 +341,15 @@ const TRACK_ICON = { video: Video, audio: Music, text: Type } as const
 function TrackRow({
   track,
   pps,
-  selectedClipId,
+  selectedClipIds,
   onSelect,
   timeFromEvent,
   onSnap,
 }: {
   track: Track
   pps: number
-  selectedClipId: string | null
-  onSelect: (id: string | null) => void
+  selectedClipIds: string[]
+  onSelect: (id: string | null, additive?: boolean) => void
   timeFromEvent: (clientX: number) => number
   onSnap: (t: number | null) => void
 }) {
@@ -374,7 +375,7 @@ function TrackRow({
           key={clip.id}
           clip={clip}
           pps={pps}
-          selected={clip.id === selectedClipId}
+          selected={selectedClipIds.includes(clip.id)}
           onSelect={onSelect}
           locked={!!track.locked}
           onSnap={onSnap}
@@ -403,7 +404,7 @@ function ClipView({
   clip: Clip
   pps: number
   selected: boolean
-  onSelect: (id: string | null) => void
+  onSelect: (id: string | null, additive?: boolean) => void
   locked: boolean
   onSnap: (t: number | null) => void
 }) {
@@ -422,7 +423,7 @@ function ClipView({
   function beginDrag(e: React.PointerEvent, kind: 'move' | 'trim-l' | 'trim-r') {
     e.preventDefault()
     e.stopPropagation()
-    onSelect(clip.id)
+    onSelect(clip.id, e.shiftKey || e.metaKey || e.ctrlKey)
     if (locked) return
     const store = useEditorStore.getState()
     const asset = clip.mediaId ? store.media.find((m) => m.id === clip.mediaId) : undefined

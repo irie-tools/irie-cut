@@ -59,6 +59,10 @@ interface EditorState {
   /** mediaId -> object URL, created on load. Not persisted. */
   mediaUrls: Record<string, string>
   selectedClipId: string | null
+  /** All selected clip ids (includes the primary). For multi-select operations. */
+  selectedClipIds: string[]
+  /** Copy/paste clipboard of clip snapshots. */
+  clipboard: Clip[] | null
   currentTime: number
   isPlaying: boolean
   /** Timeline zoom multiplier (pixels per second = base * zoom). */
@@ -112,7 +116,11 @@ interface EditorState {
   clearMarkers: () => void
   detectBeats: (clipId: string) => Promise<number>
   duplicateClip: (clipId: string) => void
-  selectClip: (clipId: string | null) => void
+  selectClip: (clipId: string | null, additive?: boolean) => void
+  copySelection: () => void
+  pasteClipboard: () => void
+  nudgeSelection: (deltaSeconds: number) => void
+  deleteSelection: () => void
 
   setCurrentTime: (t: number) => void
   setPlaying: (p: boolean) => void
@@ -177,6 +185,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
     media: [],
     mediaUrls: {},
     selectedClipId: null,
+    selectedClipIds: [],
+    clipboard: null,
     currentTime: 0,
     isPlaying: false,
     zoom: 1,
@@ -208,6 +218,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
         currentTime: 0,
         isPlaying: false,
         selectedClipId: null,
+        selectedClipIds: [],
         past: [],
         future: [],
       })
@@ -234,7 +245,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     closeProject() {
       const { mediaUrls } = get()
       Object.values(mediaUrls).forEach((url) => URL.revokeObjectURL(url))
-      set({ project: null, media: [], mediaUrls: {}, selectedClipId: null, currentTime: 0, isPlaying: false })
+      set({ project: null, media: [], mediaUrls: {}, selectedClipId: null, selectedClipIds: [], currentTime: 0, isPlaying: false })
     },
 
     updateProject(patch, coalesceKey) {
@@ -677,6 +688,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
         ...p,
         tracks: p.tracks.map((t) => ({ ...t, clips: t.clips.filter((c) => c.id !== clipId) })),
       }))
+      set({ selectedClipIds: get().selectedClipIds.filter((i) => i !== clipId) })
       if (get().selectedClipId === clipId) set({ selectedClipId: null })
     },
 
@@ -700,6 +712,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
           ),
         }
       })
+      set({ selectedClipIds: get().selectedClipIds.filter((i) => i !== clipId) })
       if (get().selectedClipId === clipId) set({ selectedClipId: null })
     },
 
@@ -755,8 +768,84 @@ export const useEditorStore = create<EditorState>((set, get) => {
       })
     },
 
-    selectClip(clipId) {
-      set({ selectedClipId: clipId })
+    selectClip(clipId, additive) {
+      if (clipId == null) {
+        set({ selectedClipId: null, selectedClipIds: [] })
+        return
+      }
+      if (additive) {
+        const ids = get().selectedClipIds
+        const next = ids.includes(clipId) ? ids.filter((i) => i !== clipId) : [...ids, clipId]
+        set({ selectedClipIds: next, selectedClipId: next[next.length - 1] ?? null })
+      } else {
+        set({ selectedClipId: clipId, selectedClipIds: [clipId] })
+      }
+    },
+
+    copySelection() {
+      const { project, selectedClipIds } = get()
+      if (!project || !selectedClipIds.length) return
+      const all = project.tracks.flatMap((t) => t.clips)
+      const clips = selectedClipIds
+        .map((id) => all.find((c) => c.id === id))
+        .filter((c): c is Clip => !!c)
+        .map((c) => structuredCloneClip(c))
+      set({ clipboard: clips })
+    },
+
+    pasteClipboard() {
+      const { clipboard, currentTime } = get()
+      if (!clipboard || !clipboard.length) return
+      const base = Math.min(...clipboard.map((c) => c.start))
+      const newIds: string[] = []
+      mutate((p) => {
+        let project = p
+        const additions = new Map<string, Clip[]>()
+        for (const c of clipboard) {
+          const wanted: TrackType = c.type === 'audio' ? 'audio' : c.type === 'text' ? 'text' : 'video'
+          let track = project.tracks.find((t) => t.id === c.trackId) ?? project.tracks.find((t) => t.type === wanted)
+          if (!track) {
+            const created = trackForType(project, c.type)
+            project = created.project
+            track = project.tracks.find((t) => t.id === created.trackId)!
+          }
+          const clip: Clip = { ...structuredCloneClip(c), id: uid(), trackId: track.id, start: currentTime + (c.start - base) }
+          newIds.push(clip.id)
+          additions.set(track.id, [...(additions.get(track.id) ?? []), clip])
+        }
+        return {
+          ...project,
+          tracks: project.tracks.map((t) =>
+            additions.has(t.id) ? { ...t, clips: [...t.clips, ...additions.get(t.id)!] } : t,
+          ),
+        }
+      })
+      set({ selectedClipIds: newIds, selectedClipId: newIds[newIds.length - 1] ?? null })
+    },
+
+    nudgeSelection(deltaSeconds) {
+      const ids = new Set(get().selectedClipIds)
+      if (!ids.size) return
+      mutate(
+        (p) => ({
+          ...p,
+          tracks: p.tracks.map((t) => ({
+            ...t,
+            clips: t.clips.map((c) => (ids.has(c.id) ? { ...c, start: Math.max(0, c.start + deltaSeconds) } : c)),
+          })),
+        }),
+        'nudge',
+      )
+    },
+
+    deleteSelection() {
+      const ids = new Set(get().selectedClipIds)
+      if (!ids.size) return
+      mutate((p) => ({
+        ...p,
+        tracks: p.tracks.map((t) => ({ ...t, clips: t.clips.filter((c) => !ids.has(c.id)) })),
+      }))
+      set({ selectedClipId: null, selectedClipIds: [] })
     },
 
     setCurrentTime(t) {
@@ -780,6 +869,11 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
   }
 })
+
+/** Deep-clone a clip (plain serialisable data) so nested keyframes/text/fx aren't shared. */
+function structuredCloneClip(c: Clip): Clip {
+  return JSON.parse(JSON.stringify(c))
+}
 
 function trackName(type: TrackType): string {
   if (type === 'video') return 'Video'
