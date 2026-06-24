@@ -120,6 +120,9 @@ function init(): GLState | null {
     return null
   }
   gl.useProgram(program)
+  // Shaders are linked into the program; the individual objects can be freed.
+  gl.deleteShader(vs)
+  gl.deleteShader(fs)
 
   const buf = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, buf)

@@ -355,6 +355,10 @@ function KeyframeRow({
         <button
           onClick={toggleDiamond}
           disabled={!insideClip}
+          aria-pressed={onKf}
+          aria-label={`${spec.label} keyframe: ${
+            keyed ? (onKf ? 'remove at playhead' : 'add at playhead') : 'animate from playhead'
+          }`}
           title={
             keyed
               ? onKf
@@ -502,7 +506,7 @@ function BeatControls({ clip }: { clip: Clip }) {
           Clear
         </button>
       </div>
-      {msg && <p className="pt-1 text-[10px] text-muted-foreground">{msg}. Clips snap to markers when dragged.</p>}
+      {msg && <p role="status" aria-live="polite" className="pt-1 text-[10px] text-muted-foreground">{msg}. Clips snap to markers when dragged.</p>}
     </Row>
   )
 }
@@ -1002,6 +1006,7 @@ function BrandKitControls({ text, onApply }: { text: TextProperties; onApply: (p
               e.preventDefault()
               setKit(removeBrandColor(c))
             }}
+            aria-label={`Apply brand colour ${c} (right-click to remove)`}
             title={`${c} — click to apply, right-click to remove`}
             className="size-6 rounded-md border border-border"
             style={{ background: c }}
@@ -1074,14 +1079,18 @@ function Toggle({
   active,
   onClick,
   children,
+  label,
 }: {
   active: boolean
   onClick: () => void
   children: React.ReactNode
+  label?: string
 }) {
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
+      aria-label={label}
       className={cn(
         'rounded-md border border-border p-1.5 transition-colors',
         active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent',

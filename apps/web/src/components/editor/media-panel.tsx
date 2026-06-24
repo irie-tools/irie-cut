@@ -232,9 +232,9 @@ function StickersTab() {
                 key={i}
                 onClick={() => addTextClip(e)}
                 className="flex aspect-square items-center justify-center rounded-md text-xl transition-colors hover:bg-accent"
-                title="Add emoji to timeline"
+                aria-label={`Add ${e} sticker to timeline`}
               >
-                {e}
+                <span aria-hidden="true">{e}</span>
               </button>
             ))}
           </div>

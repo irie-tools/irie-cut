@@ -264,7 +264,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
         height,
         tracks: p.tracks.map((t) => ({
           ...t,
-          clips: t.clips.map((c) => (c.type === 'video' || c.type === 'image' ? { ...c, fit: 'cover' } : c)),
+          // Fill the new frame, but respect a clip's explicit fit choice.
+          clips: t.clips.map((c) => (c.type === 'video' || c.type === 'image' ? { ...c, fit: c.fit ?? 'cover' } : c)),
         })),
       }))
     },

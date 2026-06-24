@@ -12,7 +12,10 @@ import type { Project } from '#/types/editor'
 // element through a Web Audio chain so the live preview matches the export. The
 // same buildFxChain() runs in both. Falls back to direct el.volume on any error.
 let previewAudioCtx: AudioContext | null = null
-const fxGraphs = new Map<string, { chain: FxChain; gain: GainNode }>()
+const fxGraphs = new Map<string, { source: MediaElementAudioSourceNode; chain: FxChain; gain: GainNode }>()
+// A media element can be wired to a MediaElementSource only ONCE — track which
+// elements are already sourced so we never call createMediaElementSource twice.
+const sourcedEls = new WeakSet<HTMLMediaElement>()
 
 function ensurePreviewAudioCtx(): AudioContext | null {
   if (previewAudioCtx) return previewAudioCtx
@@ -41,14 +44,20 @@ function applyPreviewGain(el: HTMLMediaElement, clipId: string, gainVal: number,
   }
   let g = existing
   if (!g) {
+    // This element was already sourced (and its graph torn down) — can't re-source it.
+    if (sourcedEls.has(el)) {
+      el.volume = gainVal
+      return
+    }
     try {
       const source = ctx.createMediaElementSource(el)
+      sourcedEls.add(el)
       const chain = buildFxChain(ctx, fx ?? DEFAULT_FX)
       const gain = ctx.createGain()
       source.connect(chain.input)
       chain.output.connect(gain)
       gain.connect(ctx.destination)
-      g = { chain, gain }
+      g = { source, chain, gain }
       fxGraphs.set(clipId, g)
     } catch {
       el.volume = gainVal
@@ -300,6 +309,7 @@ function syncMedia(
   for (const [id, g] of fxGraphs) {
     if (!neededVideo.has(id) && !neededAudio.has(id)) {
       try {
+        g.source.disconnect()
         g.gain.disconnect()
       } catch {
         /* already disconnected */

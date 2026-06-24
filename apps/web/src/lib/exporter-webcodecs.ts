@@ -39,19 +39,24 @@ async function pickVideoCodec(width: number, height: number, bitrate: number, fp
   return null
 }
 
+/** Seek a video element, resolving on `seeked` OR a timeout so the export can't stall. */
 function seekTo(el: HTMLVideoElement, t: number): Promise<void> {
   return new Promise((resolve) => {
     if (!Number.isFinite(t) || Math.abs(el.currentTime - t) < 1e-3) return resolve()
-    const onSeeked = () => {
-      el.removeEventListener('seeked', onSeeked)
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      el.removeEventListener('seeked', finish)
+      clearTimeout(timer)
       resolve()
     }
-    el.addEventListener('seeked', onSeeked)
+    el.addEventListener('seeked', finish)
+    const timer = setTimeout(finish, 1500)
     try {
       el.currentTime = t
     } catch {
-      el.removeEventListener('seeked', onSeeked)
-      resolve()
+      finish()
     }
   })
 }
@@ -85,6 +90,8 @@ export interface WebCodecsOptions {
   fps?: number
 }
 
+type AudioChunk = { chunk: EncodedAudioChunk; meta?: EncodedAudioChunkMetadata }
+
 export async function exportProjectWebCodecs(
   project: Project,
   getUrl: (mediaId: string) => string | undefined,
@@ -100,26 +107,41 @@ export async function exportProjectWebCodecs(
   const height = project.height
   const bitrate = opts.bitrate ?? Math.round((width * height * fps) / 50) // ~ quality target
   const totalFrames = Math.max(1, Math.ceil(total * fps))
+  const gop = Math.max(1, Math.round(fps * 2))
 
   const codec = await pickVideoCodec(width, height, bitrate, fps)
   if (!codec) throw new Error('No supported H.264 encoder configuration.')
 
-  const hasAudio = project.tracks.some((t) => t.clips.some((c) => (c.type === 'audio' || c.type === 'video') && c.mediaId))
+  // 1) Mix + encode audio FIRST, into a chunk buffer — so we only declare an
+  //    audio track in the muxer if it actually produced samples (avoids a
+  //    declared-but-empty/broken AAC track when decoding fails).
   const audioSampleRate = 48000
+  const audioChunks: AudioChunk[] = []
+  try {
+    await mixAndEncodeAudio(project, getBlob, audioSampleRate, total, (chunk, meta) =>
+      audioChunks.push({ chunk, meta }),
+    )
+  } catch {
+    /* video-only fallback */
+  }
+  const hasAudio = audioChunks.length > 0
 
-  // --- Muxer ---
+  // 2) Muxer (audio track only if we have chunks).
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
     video: { codec: 'avc', width, height },
     ...(hasAudio ? { audio: { codec: 'aac', numberOfChannels: 2, sampleRate: audioSampleRate } } : {}),
     fastStart: 'in-memory',
   })
+  for (const { chunk, meta } of audioChunks) muxer.addAudioChunk(chunk, meta ?? undefined)
 
-  // --- Video encode ---
+  // 3) Video encode — capture encoder errors into the main stack (a throw inside
+  //    the error callback would become an unhandled rejection and hang the UI).
+  let encoderError: Error | null = null
   const videoEncoder = new VideoEncoder({
     output: (chunk, meta) => muxer.addVideoChunk(chunk, meta ?? undefined),
     error: (e) => {
-      throw e
+      encoderError = e instanceof Error ? e : new Error(String(e))
     },
   })
   videoEncoder.configure({ codec, width, height, bitrate, framerate: fps })
@@ -164,6 +186,7 @@ export async function exportProjectWebCodecs(
   }
 
   for (let i = 0; i < totalFrames; i++) {
+    if (encoderError) throw encoderError
     const t = Math.min(total - 1e-4, i / fps)
     // Seek active video clips to the exact source time.
     for (const track of project.tracks) {
@@ -181,7 +204,7 @@ export async function exportProjectWebCodecs(
       timestamp: Math.round((i * 1e6) / fps),
       duration: Math.round(1e6 / fps),
     })
-    videoEncoder.encode(frame, { keyFrame: i % (fps * 2) === 0 })
+    videoEncoder.encode(frame, { keyFrame: i % gop === 0 })
     frame.close()
     if (videoEncoder.encodeQueueSize > 8) {
       await new Promise<void>((r) => {
@@ -189,19 +212,10 @@ export async function exportProjectWebCodecs(
         check()
       })
     }
-    onProgress(Math.min(0.95, (i / totalFrames) * (hasAudio ? 0.8 : 1)))
+    onProgress(Math.min(0.99, (i / totalFrames) * (hasAudio ? 0.85 : 1) + (hasAudio ? 0.1 : 0)))
   }
   await videoEncoder.flush()
-
-  // --- Audio ---
-  if (hasAudio) {
-    try {
-      await mixAndEncodeAudio(project, getBlob, muxer, audioSampleRate, total)
-    } catch {
-      /* video-only fallback: still produce a valid file */
-    }
-  }
-  onProgress(0.99)
+  if (encoderError) throw encoderError
 
   muxer.finalize()
   const buffer = (muxer.target as ArrayBufferTarget).buffer
@@ -211,15 +225,16 @@ export async function exportProjectWebCodecs(
 async function mixAndEncodeAudio(
   project: Project,
   getBlob: (mediaId: string) => Promise<Blob | undefined>,
-  muxer: Muxer<ArrayBufferTarget>,
   sampleRate: number,
   total: number,
+  onChunk: (chunk: EncodedAudioChunk, meta?: EncodedAudioChunkMetadata) => void,
 ) {
   const length = Math.ceil(total * sampleRate)
   const octx = new OfflineAudioContext(2, length, sampleRate)
   const soloActive = anySolo(project)
 
   const decoded = new Map<string, AudioBuffer>()
+  let scheduled = 0
   for (const track of project.tracks) {
     for (const clip of track.clips) {
       if ((clip.type !== 'audio' && clip.type !== 'video') || !clip.mediaId) continue
@@ -240,17 +255,23 @@ async function mixAndEncodeAudio(
       src.playbackRate.value = speed
 
       const gain = octx.createGain()
-      // Gain envelope: sample the shared effectiveGain across the clip span.
-      const steps = Math.max(2, Math.ceil(clip.duration * 60))
-      const curve = new Float32Array(steps)
-      for (let k = 0; k < steps; k++) {
-        const tt = clip.start + (k / (steps - 1)) * clip.duration
-        curve[k] = effectiveGain(project, track, clip, tt, soloActive)
-      }
-      try {
-        gain.gain.setValueCurveAtTime(curve, clip.start, Math.max(0.001, clip.duration))
-      } catch {
-        gain.gain.value = curve[0]
+      // Constant gain (no automation/fades) → a single value; else a sampled curve.
+      const hasEnvelope = !!clip.volumeKeyframes?.length || (clip.fadeIn ?? 0) > 0 || (clip.fadeOut ?? 0) > 0 ||
+        !!clip.transitionIn || !!clip.transitionOut
+      if (!hasEnvelope) {
+        gain.gain.value = effectiveGain(project, track, clip, clip.start, soloActive)
+      } else {
+        const steps = Math.max(2, Math.ceil(clip.duration * 60))
+        const curve = new Float32Array(steps)
+        for (let k = 0; k < steps; k++) {
+          const tt = clip.start + (k / (steps - 1)) * clip.duration
+          curve[k] = effectiveGain(project, track, clip, tt, soloActive)
+        }
+        try {
+          gain.gain.setValueCurveAtTime(curve, clip.start, Math.max(0.001, clip.duration))
+        } catch {
+          gain.gain.value = curve[0]
+        }
       }
 
       const fx = clip.audioFx
@@ -264,15 +285,14 @@ async function mixAndEncodeAudio(
       gain.connect(octx.destination)
       src.start(clip.start, clip.trimStart)
       src.stop(clip.start + clip.duration)
+      scheduled++
     }
   }
+  if (scheduled === 0) return // nothing to encode → no audio track
 
   const rendered = await octx.startRendering()
 
-  const audioEncoder = new AudioEncoder({
-    output: (chunk, meta) => muxer.addAudioChunk(chunk, meta ?? undefined),
-    error: () => {},
-  })
+  const audioEncoder = new AudioEncoder({ output: (chunk, meta) => onChunk(chunk, meta), error: () => {} })
   audioEncoder.configure({ codec: 'mp4a.40.2', sampleRate, numberOfChannels: 2, bitrate: 192000 })
 
   const ch0 = rendered.getChannelData(0)
@@ -295,4 +315,5 @@ async function mixAndEncodeAudio(
     audioData.close()
   }
   await audioEncoder.flush()
+  audioEncoder.close()
 }
