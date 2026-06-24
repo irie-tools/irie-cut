@@ -20,6 +20,7 @@ import {
 } from '#/lib/keyframes'
 import * as storage from '#/lib/storage'
 import { detectMediaType, probeMedia } from '#/lib/media'
+import { getBeats } from '#/lib/beat-detect'
 import type { Template } from '#/lib/templates'
 
 export const PX_PER_SECOND_BASE = 50
@@ -108,6 +109,8 @@ interface EditorState {
   rippleDeleteClip: (clipId: string) => void
   addMarker: (time: number) => void
   removeMarker: (id: string) => void
+  clearMarkers: () => void
+  detectBeats: (clipId: string) => Promise<number>
   duplicateClip: (clipId: string) => void
   selectClip: (clipId: string | null) => void
 
@@ -709,6 +712,32 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     removeMarker(id) {
       mutate((p) => ({ ...p, markers: (p.markers ?? []).filter((m) => m.id !== id) }))
+    },
+
+    clearMarkers() {
+      mutate((p) => ({ ...p, markers: [] }))
+    },
+
+    async detectBeats(clipId) {
+      const project = get().project
+      if (!project) return 0
+      const found = findClip(project, clipId)
+      if (!found || !found.clip.mediaId) return 0
+      const blob = await storage.getMediaBlob(found.clip.mediaId)
+      if (!blob) return 0
+      const beats = await getBeats(found.clip.mediaId, blob)
+      const clip = found.clip
+      // Map source-time onsets into the clip's visible timeline span.
+      const times = beats
+        .filter((b) => b >= clip.trimStart && b <= clip.trimEnd)
+        .map((b) => clip.start + (b - clip.trimStart))
+        .slice(0, 200)
+      if (!times.length) return 0
+      mutate((p) => ({
+        ...p,
+        markers: [...(p.markers ?? []), ...times.map((t) => ({ id: uid(), time: t, label: 'beat' }))],
+      }))
+      return times.length
     },
 
     duplicateClip(clipId) {

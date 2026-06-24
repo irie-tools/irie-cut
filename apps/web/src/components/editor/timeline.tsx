@@ -436,7 +436,7 @@ function ClipView({
       trimEnd: clip.trimEnd,
     }
 
-    // Snap targets: timeline origin, playhead, and other clips' edges.
+    // Snap targets: timeline origin, playhead, other clips' edges, and markers (beats).
     const snapPoints = [0, store.currentTime]
     for (const t of store.project?.tracks ?? []) {
       for (const c of t.clips) {
@@ -444,6 +444,7 @@ function ClipView({
         snapPoints.push(c.start, c.start + c.duration)
       }
     }
+    for (const m of store.project?.markers ?? []) snapPoints.push(m.time)
     const snapThreshold = 8 / pps
     const snap = (v: number) => {
       let best = v

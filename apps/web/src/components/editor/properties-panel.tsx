@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Bold, Italic, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
 import { useEditorStore } from '#/stores/editor-store'
 import type { Clip, TextProperties, ShapeProperties } from '#/types/editor'
@@ -102,6 +103,8 @@ function ClipProps({ clip }: { clip: Clip }) {
       </Row>
 
       {(clip.type === 'video' || clip.type === 'audio') && <VolumeControls clip={clip} />}
+
+      {(clip.type === 'video' || clip.type === 'audio') && clip.mediaId && <BeatControls clip={clip} />}
 
       {(clip.type === 'video' || clip.type === 'audio') && (
         <Row label={`Speed · ${(clip.speed ?? 1).toFixed(2)}×`}>
@@ -382,6 +385,48 @@ function AdjustControls({ clip }: { clip: Clip }) {
         </Row>
       ))}
     </>
+  )
+}
+
+function BeatControls({ clip }: { clip: Clip }) {
+  const detectBeats = useEditorStore((s) => s.detectBeats)
+  const clearMarkers = useEditorStore((s) => s.clearMarkers)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+
+  async function run() {
+    setBusy(true)
+    setMsg(null)
+    try {
+      const n = await detectBeats(clip.id)
+      setMsg(n ? `${n} beat markers added` : 'No beats detected')
+    } catch {
+      setMsg('Could not analyze audio')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Row label="Beat detection">
+      <div className="flex gap-2">
+        <button
+          onClick={run}
+          disabled={busy}
+          className="flex-1 rounded-md border border-border px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground disabled:opacity-50"
+        >
+          {busy ? 'Analyzing…' : 'Detect beats'}
+        </button>
+        <button
+          onClick={() => clearMarkers()}
+          className="rounded-md border border-border px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          title="Clear all markers"
+        >
+          Clear
+        </button>
+      </div>
+      {msg && <p className="pt-1 text-[10px] text-muted-foreground">{msg}. Clips snap to markers when dragged.</p>}
+    </Row>
   )
 }
 
