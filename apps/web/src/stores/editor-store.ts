@@ -13,6 +13,11 @@ import type {
   TrackType,
 } from '#/types/editor'
 import { DEFAULT_STILL_DURATION } from '#/types/editor'
+import {
+  upsertKeyframe,
+  removeKeyframeAt,
+  type KeyframeProp,
+} from '#/lib/keyframes'
 import * as storage from '#/lib/storage'
 import { detectMediaType, probeMedia } from '#/lib/media'
 import type { Template } from '#/lib/templates'
@@ -83,6 +88,15 @@ interface EditorState {
   addCaptions: (cues: { start: number; end: number; text: string }[], offset?: number) => void
   applyTemplate: (template: Template) => void
   updateClip: (clipId: string, patch: Partial<Clip>, coalesceKey?: string) => void
+  setKeyframe: (
+    clipId: string,
+    prop: KeyframeProp,
+    t: number,
+    value: number,
+    coalesceKey?: string,
+  ) => void
+  removeKeyframe: (clipId: string, prop: KeyframeProp, t: number) => void
+  clearKeyframes: (clipId: string, prop?: KeyframeProp) => void
   moveClip: (clipId: string, trackId: string, start: number) => void
   splitAtPlayhead: () => void
   deleteClip: (clipId: string) => void
@@ -442,6 +456,58 @@ export const useEditorStore = create<EditorState>((set, get) => {
         }),
         coalesceKey,
       )
+    },
+
+    setKeyframe(clipId, prop, t, value, coalesceKey) {
+      mutate(
+        (p) => ({
+          ...p,
+          tracks: p.tracks.map((tr) => ({
+            ...tr,
+            clips: tr.clips.map((c) => {
+              if (c.id !== clipId) return c
+              const keyframes = { ...(c.keyframes ?? {}) }
+              keyframes[prop] = upsertKeyframe(keyframes[prop], t, value)
+              return { ...c, keyframes }
+            }),
+          })),
+        }),
+        coalesceKey,
+      )
+    },
+
+    removeKeyframe(clipId, prop, t) {
+      mutate((p) => ({
+        ...p,
+        tracks: p.tracks.map((tr) => ({
+          ...tr,
+          clips: tr.clips.map((c) => {
+            if (c.id !== clipId || !c.keyframes?.[prop]) return c
+            const keyframes = { ...c.keyframes }
+            const left = removeKeyframeAt(keyframes[prop], t)
+            if (left.length) keyframes[prop] = left
+            else delete keyframes[prop]
+            return { ...c, keyframes: Object.keys(keyframes).length ? keyframes : undefined }
+          }),
+        })),
+      }))
+    },
+
+    clearKeyframes(clipId, prop) {
+      mutate((p) => ({
+        ...p,
+        tracks: p.tracks.map((tr) => ({
+          ...tr,
+          clips: tr.clips.map((c) => {
+            if (c.id !== clipId) return c
+            if (!prop) return { ...c, keyframes: undefined }
+            if (!c.keyframes) return c
+            const keyframes = { ...c.keyframes }
+            delete keyframes[prop]
+            return { ...c, keyframes: Object.keys(keyframes).length ? keyframes : undefined }
+          }),
+        })),
+      }))
     },
 
     moveClip(clipId, trackId, start) {
