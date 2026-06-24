@@ -30,7 +30,7 @@ import {
 } from '#/components/ui/select'
 import { ClientOnly } from '#/components/client-only'
 import type { Project } from '#/types/editor'
-import { getAllProjects, deleteProject } from '#/lib/storage'
+import { getAllProjects, deleteProject, getProjectMedia } from '#/lib/storage'
 import { exportProjectBundle, importProjectBundle } from '#/lib/project-io'
 import { buildPromoProject } from '#/lib/pam-import'
 import { createProject, projectDuration } from '#/stores/editor-store'
@@ -61,6 +61,7 @@ function ProjectsPage() {
 function ProjectsInner() {
   const navigate = useNavigate()
   const [projects, setProjects] = useState<Project[]>([])
+  const [thumbs, setThumbs] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
@@ -107,8 +108,23 @@ function ProjectsInner() {
   }
 
   async function refresh() {
-    setProjects(await getAllProjects())
+    const ps = await getAllProjects()
+    setProjects(ps)
     setLoading(false)
+    // Pull a cover thumbnail per project (first media asset that has one) for the grid.
+    const entries = await Promise.all(
+      ps.map(async (p) => {
+        try {
+          const media = await getProjectMedia(p.id)
+          return [p.id, media.find((m) => m.thumbnail)?.thumbnail] as const
+        } catch {
+          return [p.id, undefined] as const
+        }
+      }),
+    )
+    const map: Record<string, string> = {}
+    for (const [id, t] of entries) if (t) map[id] = t
+    setThumbs(map)
   }
 
   useEffect(() => {
@@ -139,11 +155,11 @@ function ProjectsInner() {
     <div className="min-h-screen">
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
+          <Link to="/" className="flex shrink-0 items-center gap-2 font-semibold">
             <Clapperboard className="size-6 text-primary" />
-            <span className="text-lg">Irie Cut</span>
+            <span className="whitespace-nowrap text-lg">Irie Cut</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <input
               ref={importRef}
               type="file"
@@ -166,16 +182,20 @@ function ProjectsInner() {
                 e.target.value = ''
               }}
             />
-            <Button variant="outline" onClick={() => pamRef.current?.click()} disabled={importing}>
-              <Music className="size-4" /> Import from Pam
+            <span className="mr-1 hidden text-xs uppercase tracking-[0.18em] text-muted-foreground sm:inline">
+              Bring in
+            </span>
+            <Button variant="outline" size="sm" onClick={() => pamRef.current?.click()} disabled={importing}>
+              <Music className="size-4 text-primary" /> From Pam
             </Button>
-            <Button variant="outline" onClick={() => pamRef.current?.click()} disabled={importing}>
-              <Film className="size-4" /> Import from Video Studio
+            <Button variant="outline" size="sm" onClick={() => pamRef.current?.click()} disabled={importing}>
+              <Film className="size-4 text-primary" /> From Video Studio
             </Button>
-            <Button variant="outline" onClick={() => importRef.current?.click()} disabled={importing}>
-              <Upload className="size-4" /> {importing ? 'Importing…' : 'Import'}
+            <Button variant="outline" size="sm" onClick={() => importRef.current?.click()} disabled={importing}>
+              <Upload className="size-4" /> {importing ? 'Importing…' : 'Project file'}
             </Button>
-            <Button onClick={() => setOpen(true)}>
+            <span className="mx-1 hidden h-5 w-px bg-border sm:inline-block" />
+            <Button className="gold-glow" onClick={() => setOpen(true)}>
               <Plus className="size-4" /> New project
             </Button>
           </div>
@@ -183,20 +203,36 @@ function ProjectsInner() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-10">
-        <h1 className="mb-6 font-heading text-3xl font-semibold">Your projects</h1>
+        <div className="mb-7">
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary/90">
+            Your cutting room
+          </p>
+          <h1 className="mt-1 font-heading text-3xl font-semibold sm:text-4xl">Your projects</h1>
+        </div>
 
         {loading ? (
           <p className="text-muted-foreground">Loading…</p>
         ) : projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-24 text-center">
-            <Film className="mb-4 size-10 text-muted-foreground" />
-            <p className="text-lg font-medium">No projects yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Create your first project to start editing.
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-primary/20 bg-card/30 py-20 text-center">
+            <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-primary/10">
+              <Film className="size-7 text-primary" />
+            </div>
+            <p className="font-heading text-2xl font-semibold">Nothing cut yet</p>
+            <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+              Start fresh, or bring a song and visuals in from Pam or Video Studio — they land ready
+              to cut to the beat.
             </p>
-            <Button className="mt-6" onClick={() => setOpen(true)}>
-              <Plus className="size-4" /> New project
-            </Button>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              <Button variant="outline" onClick={() => pamRef.current?.click()}>
+                <Music className="size-4 text-primary" /> From Pam
+              </Button>
+              <Button variant="outline" onClick={() => pamRef.current?.click()}>
+                <Film className="size-4 text-primary" /> From Video Studio
+              </Button>
+              <Button className="gold-glow" onClick={() => setOpen(true)}>
+                <Plus className="size-4" /> New project
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -205,10 +241,24 @@ function ProjectsInner() {
                 key={p.id}
                 to="/editor/$projectId"
                 params={{ projectId: p.id }}
-                className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/50"
+                className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-xl hover:shadow-black/40"
               >
-                <div className="flex aspect-video items-center justify-center bg-black/40">
-                  <Film className="size-10 text-muted-foreground/50" />
+                <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-gradient-to-br from-[#221d16] to-black">
+                  {thumbs[p.id] ? (
+                    <img src={thumbs[p.id]} alt="" className="absolute inset-0 size-full object-cover" />
+                  ) : (
+                    <Film className="size-9 text-primary/40" />
+                  )}
+                  {p.promo?.source && (
+                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-background/70 px-2 py-0.5 text-[10px] font-medium text-foreground backdrop-blur">
+                      {p.promo.source === 'studio' ? (
+                        <Film className="size-3 text-primary" />
+                      ) : (
+                        <Music className="size-3 text-primary" />
+                      )}
+                      {p.promo.source === 'studio' ? 'Video Studio' : 'Pam'}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-start justify-between gap-2 p-4">
                   <div className="min-w-0">
