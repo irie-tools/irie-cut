@@ -24,6 +24,7 @@ import { DEFAULT_CHROMA } from '#/lib/chroma'
 import { FONT_OPTIONS, normalizeFont } from '#/lib/fonts'
 import { clipVolumeAt } from '#/lib/audio'
 import { DEFAULT_FX, isNeutralFx } from '#/lib/audio-fx'
+import { getBrandKit, addBrandColor, removeBrandColor, setBrandFont } from '#/lib/brand-kit'
 import { BEAT_ROLES, roleLabel } from '#/lib/beats'
 import { TRANSITIONS } from '#/lib/transitions'
 import {
@@ -918,6 +919,8 @@ function TextProps({ clip, text }: { clip: Clip; text: TextProperties }) {
         <Slider value={[text.y]} min={0} max={1} step={0.01} onValueChange={(v) => set({ y: sv(v) }, `ty:${clip.id}`)} />
       </Row>
 
+      <BrandKitControls text={text} onApply={(patch) => set(patch)} />
+
       <Label className="block pt-1 text-xs font-semibold text-foreground">Style details</Label>
       <div className="flex gap-3">
         <Row label="Outline">
@@ -966,6 +969,58 @@ const REFRAME_PRESETS: { label: string; w: number; h: number }[] = [
   { label: '1:1', w: 1080, h: 1080 },
   { label: '4:5', w: 1080, h: 1350 },
 ]
+
+function BrandKitControls({ text, onApply }: { text: TextProperties; onApply: (patch: Partial<TextProperties>) => void }) {
+  const [kit, setKit] = useState(() => getBrandKit())
+  return (
+    <>
+      <div className="flex items-center justify-between pt-1">
+        <Label className="text-xs font-semibold text-foreground">Brand kit</Label>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setKit(addBrandColor(text.color))}
+            className="text-[10px] text-muted-foreground hover:text-foreground"
+            title="Save this text colour to the brand kit"
+          >
+            + Save color
+          </button>
+          <button
+            onClick={() => setKit(setBrandFont(text.fontFamily))}
+            className="text-[10px] text-muted-foreground hover:text-foreground"
+            title="Set this font as the brand font"
+          >
+            Set font
+          </button>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {kit.colors.map((c) => (
+          <button
+            key={c}
+            onClick={() => onApply({ color: c })}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              setKit(removeBrandColor(c))
+            }}
+            title={`${c} — click to apply, right-click to remove`}
+            className="size-6 rounded-md border border-border"
+            style={{ background: c }}
+          />
+        ))}
+        {kit.fontFamily && (
+          <button
+            onClick={() => onApply({ fontFamily: kit.fontFamily })}
+            className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground"
+            style={{ fontFamily: kit.fontFamily }}
+            title="Apply brand font"
+          >
+            Brand font
+          </button>
+        )}
+      </div>
+    </>
+  )
+}
 
 function ProjectProps() {
   const project = useEditorStore((s) => s.project)
