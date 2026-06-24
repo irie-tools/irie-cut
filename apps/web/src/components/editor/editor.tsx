@@ -16,6 +16,7 @@ import { Timeline } from './timeline'
 import { ProjectMenu } from './project-menu'
 import { ExportButton } from './export-dialog'
 import { ScoreButton } from './score-dialog'
+import { CommandPalette } from './command-palette'
 
 export function Editor({ projectId }: { projectId: string }) {
   const loadProject = useEditorStore((s) => s.loadProject)
@@ -125,6 +126,7 @@ export function Editor({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <CommandPalette />
       <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-card px-3">
         <div className="flex items-center gap-2">
           <Link
