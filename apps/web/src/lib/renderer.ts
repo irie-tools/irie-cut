@@ -24,6 +24,20 @@ function containBox(srcW: number, srcH: number, dstW: number, dstH: number) {
   return { x: (dstW - w) / 2, y: (dstH - h) / 2, w, h }
 }
 
+/** Apply a clip's static transform (position/scale/rotation/opacity). Caller must ctx.save() first. */
+function applyClipTransform(ctx: CanvasRenderingContext2D, clip: Clip, W: number, H: number) {
+  const tr = clip.transform
+  if (!tr) return
+  ctx.globalAlpha *= Math.max(0, Math.min(1, tr.opacity))
+  if (tr.x || tr.y) ctx.translate(tr.x * W, tr.y * H)
+  if (tr.scale !== 1 || tr.rotation) {
+    ctx.translate(W / 2, H / 2)
+    if (tr.rotation) ctx.rotate((tr.rotation * Math.PI) / 180)
+    if (tr.scale !== 1) ctx.scale(tr.scale, tr.scale)
+    ctx.translate(-W / 2, -H / 2)
+  }
+}
+
 /** Apply a transition modifier to the context. Caller must ctx.save() first. */
 function applyTransition(ctx: CanvasRenderingContext2D, m: TransitionModifier, W: number, H: number) {
   ctx.globalAlpha *= m.alpha
@@ -95,6 +109,7 @@ export function drawFrame(
         if (el && el.readyState >= 2 && el.videoWidth) {
           const box = containBox(el.videoWidth, el.videoHeight, W, H)
           ctx.save()
+          applyClipTransform(ctx, clip, W, H)
           applyTransition(ctx, transitionModifier(clip, time), W, H)
           ctx.filter = filterCss(clip.filter) || 'none'
           ctx.drawImage(el, box.x, box.y, box.w, box.h)
@@ -105,6 +120,7 @@ export function drawFrame(
         if (el && el.complete && el.naturalWidth) {
           const box = containBox(el.naturalWidth, el.naturalHeight, W, H)
           ctx.save()
+          applyClipTransform(ctx, clip, W, H)
           applyTransition(ctx, transitionModifier(clip, time), W, H)
           ctx.filter = filterCss(clip.filter) || 'none'
           ctx.drawImage(el, box.x, box.y, box.w, box.h)

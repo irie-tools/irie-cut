@@ -13,6 +13,9 @@ import {
   Unlock,
   ChevronUp,
   ChevronDown,
+  Delete,
+  Flag,
+  Maximize2,
 } from 'lucide-react'
 import {
   useEditorStore,
@@ -34,7 +37,10 @@ export function Timeline() {
   const selectClip = useEditorStore((s) => s.selectClip)
   const splitAtPlayhead = useEditorStore((s) => s.splitAtPlayhead)
   const deleteClip = useEditorStore((s) => s.deleteClip)
+  const rippleDeleteClip = useEditorStore((s) => s.rippleDeleteClip)
   const duplicateClip = useEditorStore((s) => s.duplicateClip)
+  const addMarker = useEditorStore((s) => s.addMarker)
+  const removeMarker = useEditorStore((s) => s.removeMarker)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   if (!project) return null
@@ -43,6 +49,12 @@ export function Timeline() {
   const total = projectDuration(project)
   const contentSeconds = Math.max(total + 5, 20)
   const contentWidth = contentSeconds * pps
+
+  function zoomToFit() {
+    const el = scrollRef.current
+    if (!el || total <= 0) return
+    setZoom((el.clientWidth - 24) / (total * PX_PER_SECOND_BASE))
+  }
 
   function timeFromEvent(clientX: number): number {
     const el = scrollRef.current
@@ -84,9 +96,22 @@ export function Timeline() {
         >
           <Trash2 className="size-4" />
         </ToolBtn>
+        <ToolBtn
+          label="Ripple delete (close gap)"
+          onClick={() => selectedClipId && rippleDeleteClip(selectedClipId)}
+          disabled={!selectedClipId}
+        >
+          <Delete className="size-4" />
+        </ToolBtn>
         <div className="mx-1 h-5 w-px bg-border" />
         <AddTrackButtons />
+        <ToolBtn label="Add marker (M)" onClick={() => addMarker(currentTime)}>
+          <Flag className="size-4" />
+        </ToolBtn>
         <div className="ml-auto flex items-center gap-1">
+          <ToolBtn label="Zoom to fit" onClick={zoomToFit}>
+            <Maximize2 className="size-4" />
+          </ToolBtn>
           <ToolBtn label="Zoom out" onClick={() => setZoom(zoom / 1.3)}>
             <ZoomOut className="size-4" />
           </ToolBtn>
@@ -110,7 +135,13 @@ export function Timeline() {
 
         <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-x-auto">
           <div style={{ width: contentWidth }} className="relative">
-            <Ruler seconds={contentSeconds} pps={pps} onPointerDown={onRulerDown} />
+            <Ruler
+              seconds={contentSeconds}
+              pps={pps}
+              onPointerDown={onRulerDown}
+              markers={project.markers ?? []}
+              onRemoveMarker={removeMarker}
+            />
 
             <div className="relative">
               {project.tracks.map((track) => (
@@ -230,10 +261,14 @@ function Ruler({
   seconds,
   pps,
   onPointerDown,
+  markers,
+  onRemoveMarker,
 }: {
   seconds: number
   pps: number
   onPointerDown: (e: React.PointerEvent) => void
+  markers: { id: string; time: number; label: string }[]
+  onRemoveMarker: (id: string) => void
 }) {
   // Choose a tick interval that keeps labels ~70px apart.
   const minLabelPx = 70
@@ -254,6 +289,18 @@ function Ruler({
             {formatTick(t)}
           </span>
         </div>
+      ))}
+      {markers.map((m) => (
+        <button
+          key={m.id}
+          title={`Marker @ ${formatTick(m.time)} — click to remove`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => onRemoveMarker(m.id)}
+          className="absolute bottom-0 z-10 -translate-x-1/2"
+          style={{ left: m.time * pps }}
+        >
+          <Flag className="size-3 fill-rose-500 text-rose-500" />
+        </button>
       ))}
     </div>
   )
@@ -342,7 +389,8 @@ function ClipView({
     if (locked) return
     const store = useEditorStore.getState()
     const asset = clip.mediaId ? store.media.find((m) => m.id === clip.mediaId) : undefined
-    const sourceMax = asset && asset.type !== 'image' ? asset.duration : Infinity
+    const speed = clip.speed ?? 1
+    const sourceMax = asset && asset.type !== 'image' ? asset.duration / speed : Infinity
     const startX = e.clientX
     const o = {
       start: clip.start,
@@ -351,12 +399,39 @@ function ClipView({
       trimEnd: clip.trimEnd,
     }
 
+    // Snap targets: timeline origin, playhead, and other clips' edges.
+    const snapPoints = [0, store.currentTime]
+    for (const t of store.project?.tracks ?? []) {
+      for (const c of t.clips) {
+        if (c.id === clip.id) continue
+        snapPoints.push(c.start, c.start + c.duration)
+      }
+    }
+    const snapThreshold = 8 / pps
+    const snap = (v: number) => {
+      let best = v
+      let bestD = snapThreshold
+      for (const p of snapPoints) {
+        const d = Math.abs(v - p)
+        if (d < bestD) {
+          bestD = d
+          best = p
+        }
+      }
+      return best
+    }
+
     const ck = `${kind}:${clip.id}`
     const move = (ev: PointerEvent) => {
       const ds = (ev.clientX - startX) / pps
       const s = useEditorStore.getState()
       if (kind === 'move') {
-        s.updateClip(clip.id, { start: Math.max(0, o.start + ds) }, ck)
+        let start = Math.max(0, o.start + ds)
+        // Snap the leading edge, or the trailing edge if it's closer.
+        const snappedStart = snap(start)
+        const snappedEnd = snap(start + o.duration) - o.duration
+        start = Math.abs(snappedStart - start) <= Math.abs(snappedEnd - start) ? snappedStart : snappedEnd
+        s.updateClip(clip.id, { start: Math.max(0, start) }, ck)
       } else if (kind === 'trim-l') {
         const maxLeft = o.duration - 0.1
         const delta = Math.min(Math.max(ds, -o.trimStart), maxLeft)

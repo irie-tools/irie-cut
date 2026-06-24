@@ -173,7 +173,9 @@ function syncExport(
       const el = bundle?.el ?? videoEl
       if (!el) continue
       const active = clipActiveAt(clip, t)
-      const target = clip.trimStart + (t - clip.start)
+      const speed = clip.speed ?? 1
+      const target = clip.trimStart + (t - clip.start) * speed
+      if (el.playbackRate !== speed) el.playbackRate = speed
       if (active) {
         if (el.paused) {
           if (Number.isFinite(target)) trySeek(el, target)

@@ -85,6 +85,9 @@ interface EditorState {
   moveClip: (clipId: string, trackId: string, start: number) => void
   splitAtPlayhead: () => void
   deleteClip: (clipId: string) => void
+  rippleDeleteClip: (clipId: string) => void
+  addMarker: (time: number) => void
+  removeMarker: (id: string) => void
   duplicateClip: (clipId: string) => void
   selectClip: (clipId: string | null) => void
 
@@ -466,6 +469,40 @@ export const useEditorStore = create<EditorState>((set, get) => {
         tracks: p.tracks.map((t) => ({ ...t, clips: t.clips.filter((c) => c.id !== clipId) })),
       }))
       if (get().selectedClipId === clipId) set({ selectedClipId: null })
+    },
+
+    rippleDeleteClip(clipId) {
+      mutate((p) => {
+        const found = findClip(p, clipId)
+        if (!found) return p
+        const gap = found.clip.duration
+        const at = found.clip.start
+        return {
+          ...p,
+          tracks: p.tracks.map((t) =>
+            t.id !== found.track.id
+              ? t
+              : {
+                  ...t,
+                  clips: t.clips
+                    .filter((c) => c.id !== clipId)
+                    .map((c) => (c.start >= at ? { ...c, start: Math.max(0, c.start - gap) } : c)),
+                },
+          ),
+        }
+      })
+      if (get().selectedClipId === clipId) set({ selectedClipId: null })
+    },
+
+    addMarker(time) {
+      mutate((p) => ({
+        ...p,
+        markers: [...(p.markers ?? []), { id: uid(), time: Math.max(0, time), label: '' }],
+      }))
+    },
+
+    removeMarker(id) {
+      mutate((p) => ({ ...p, markers: (p.markers ?? []).filter((m) => m.id !== id) }))
     },
 
     duplicateClip(clipId) {

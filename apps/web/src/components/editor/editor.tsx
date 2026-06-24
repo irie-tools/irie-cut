@@ -33,7 +33,12 @@ export function Editor({ projectId }: { projectId: string }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        target.closest('[role="slider"]')
+      )
         return
       const s = useEditorStore.getState()
       const mod = e.metaKey || e.ctrlKey
@@ -53,6 +58,8 @@ export function Editor({ projectId }: { projectId: string }) {
         s.togglePlay()
       } else if (e.key === 's' || e.key === 'S') {
         s.splitAtPlayhead()
+      } else if (e.key === 'm' || e.key === 'M') {
+        s.addMarker(s.currentTime)
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         if (s.selectedClipId) {
           e.preventDefault()

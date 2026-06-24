@@ -63,6 +63,10 @@ export interface Clip {
   /** Enter/exit transitions (see lib/transitions). */
   transitionIn?: { type: string; duration: number }
   transitionOut?: { type: string; duration: number }
+  /** Playback rate for video/audio clips (1 = normal). */
+  speed?: number
+  /** Visual transform for video/image clips. */
+  transform?: { x: number; y: number; scale: number; rotation: number; opacity: number }
   text?: TextProperties
 }
 

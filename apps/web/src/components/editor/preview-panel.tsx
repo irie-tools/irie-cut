@@ -196,9 +196,11 @@ function syncMedia(
       }
 
       const active = clipActiveAt(clip, time)
-      const target = clip.trimStart + (time - clip.start)
+      const speed = clip.speed ?? 1
+      const target = clip.trimStart + (time - clip.start) * speed
       el.muted = false
       el.volume = effectiveGain(project, track, clip, time, soloActive)
+      if (el.playbackRate !== speed) el.playbackRate = speed
 
       if (active) {
         if (playing) {

@@ -101,6 +101,20 @@ function ClipProps({ clip }: { clip: Clip }) {
         </Row>
       )}
 
+      {(clip.type === 'video' || clip.type === 'audio') && (
+        <Row label={`Speed · ${(clip.speed ?? 1).toFixed(2)}×`}>
+          <Slider
+            value={[clip.speed ?? 1]}
+            min={0.25}
+            max={4}
+            step={0.05}
+            onValueChange={(v) => updateClip(clip.id, { speed: sv(v) }, `spd:${clip.id}`)}
+          />
+        </Row>
+      )}
+
+      {(clip.type === 'video' || clip.type === 'image') && <TransformControls clip={clip} />}
+
       {(clip.type === 'video' || clip.type === 'image') && (
         <Row label="Filter">
           <div className="grid grid-cols-4 gap-1.5">
@@ -133,6 +147,37 @@ function ClipProps({ clip }: { clip: Clip }) {
       {clip.type === 'text' && clip.text && (
         <TextProps clip={clip} text={clip.text} />
       )}
+    </>
+  )
+}
+
+const DEFAULT_TRANSFORM = { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 }
+
+function TransformControls({ clip }: { clip: Clip }) {
+  const updateClip = useEditorStore((s) => s.updateClip)
+  const tr = clip.transform ?? DEFAULT_TRANSFORM
+  const set = (patch: Partial<typeof DEFAULT_TRANSFORM>, key: string) =>
+    updateClip(clip.id, { transform: { ...tr, ...patch } }, `${key}:${clip.id}`)
+
+  return (
+    <>
+      <Row label={`Scale · ${Math.round(tr.scale * 100)}%`}>
+        <Slider value={[tr.scale]} min={0.1} max={3} step={0.01} onValueChange={(v) => set({ scale: sv(v) }, 'sc')} />
+      </Row>
+      <Row label={`Opacity · ${Math.round(tr.opacity * 100)}%`}>
+        <Slider value={[tr.opacity]} min={0} max={1} step={0.01} onValueChange={(v) => set({ opacity: sv(v) }, 'op')} />
+      </Row>
+      <Row label={`Rotation · ${Math.round(tr.rotation)}°`}>
+        <Slider value={[tr.rotation]} min={-180} max={180} step={1} onValueChange={(v) => set({ rotation: sv(v) }, 'rot')} />
+      </Row>
+      <div className="flex gap-3">
+        <Row label={`X · ${Math.round(tr.x * 100)}%`}>
+          <Slider value={[tr.x]} min={-1} max={1} step={0.01} onValueChange={(v) => set({ x: sv(v) }, 'px')} />
+        </Row>
+        <Row label={`Y · ${Math.round(tr.y * 100)}%`}>
+          <Slider value={[tr.y]} min={-1} max={1} step={0.01} onValueChange={(v) => set({ y: sv(v) }, 'py')} />
+        </Row>
+      </div>
     </>
   )
 }
