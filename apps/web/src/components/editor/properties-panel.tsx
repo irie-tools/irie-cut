@@ -232,6 +232,8 @@ function clipEasing(clip: Clip): string {
 function TransformControls({ clip }: { clip: Clip }) {
   const clearKeyframes = useEditorStore((s) => s.clearKeyframes)
   const setClipEasing = useEditorStore((s) => s.setClipEasing)
+  const pulseToBeats = useEditorStore((s) => s.pulseToBeats)
+  const hasSong = useEditorStore((s) => s.project?.tracks.some((t) => t.clips.some((c) => c.type === 'audio' && c.mediaId)) ?? false)
   // Subscribe to the playhead so keyframe state + interpolated slider values
   // follow the playhead as it scrubs/plays.
   const currentTime = useEditorStore((s) => s.currentTime)
@@ -246,15 +248,26 @@ function TransformControls({ clip }: { clip: Clip }) {
     <>
       <div className="flex items-center justify-between pt-1">
         <Label className="text-xs font-semibold text-foreground">Transform</Label>
-        {anyKeys && (
-          <button
-            onClick={() => clearKeyframes(clip.id)}
-            className="text-[10px] text-muted-foreground transition-colors hover:text-foreground"
-            title="Remove all keyframes (revert to static)"
-          >
-            Clear motion
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {hasSong && (clip.type === 'image' || clip.type === 'video') && (
+            <button
+              onClick={() => void pulseToBeats(clip.id)}
+              className="text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+              title="Detect the song's beats and punch this clip on each one"
+            >
+              Pulse to beat
+            </button>
+          )}
+          {anyKeys && (
+            <button
+              onClick={() => clearKeyframes(clip.id)}
+              className="text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+              title="Remove all keyframes (revert to static)"
+            >
+              Clear motion
+            </button>
+          )}
+        </div>
       </div>
       {!insideClip && anyKeys && (
         <p className="-mt-2 text-[10px] text-muted-foreground">

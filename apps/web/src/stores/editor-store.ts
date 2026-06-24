@@ -121,6 +121,7 @@ interface EditorState {
   removeMarker: (id: string) => void
   clearMarkers: () => void
   detectBeats: (clipId: string) => Promise<number>
+  pulseToBeats: (coverClipId: string) => Promise<number>
   duplicateClip: (clipId: string) => void
   selectClip: (clipId: string | null, additive?: boolean) => void
   copySelection: () => void
@@ -788,6 +789,41 @@ export const useEditorStore = create<EditorState>((set, get) => {
       if (get().selectedClipId === clipId) set({ selectedClipId: null })
     },
 
+    async pulseToBeats(coverClipId) {
+      const project = get().project
+      if (!project) return 0
+      const found = findClip(project, coverClipId)
+      if (!found || (found.clip.type !== 'image' && found.clip.type !== 'video')) return 0
+      const song = project.tracks.flatMap((t) => t.clips).find((c) => c.type === 'audio' && c.mediaId)
+      if (!song?.mediaId) return 0
+      const blob = await storage.getMediaBlob(song.mediaId)
+      if (!blob) return 0
+      const beats = await getBeats(song.mediaId, blob)
+      const D = found.clip.duration
+      const rampAt = (t: number) => 1 + 0.12 * Math.max(0, Math.min(1, t / D))
+      // Linear Ken-Burns drift with a small punch on each beat.
+      const kf: { t: number; value: number; ease?: 'out' | 'inout' }[] = [{ t: 0, value: 1, ease: 'inout' }]
+      for (const bt of beats) {
+        if (bt <= 0.06 || bt >= D - 0.06) continue
+        kf.push({ t: round3(bt), value: round3(rampAt(bt) + 0.05), ease: 'out' })
+        const back = Math.min(D - 0.02, bt + 0.12)
+        kf.push({ t: round3(back), value: round3(rampAt(back)), ease: 'inout' })
+      }
+      kf.push({ t: round3(D), value: 1.12 })
+      kf.sort((a, b) => a.t - b.t)
+      const scale: typeof kf = []
+      for (const k of kf) if (!scale.length || Math.abs(scale[scale.length - 1].t - k.t) > 1e-3) scale.push(k)
+      if (scale.length <= 2) return 0
+      mutate((p) => ({
+        ...p,
+        tracks: p.tracks.map((tr) => ({
+          ...tr,
+          clips: tr.clips.map((c) => (c.id === coverClipId ? { ...c, keyframes: { ...c.keyframes, scale } } : c)),
+        })),
+      }))
+      return beats.length
+    },
+
     addMarker(time) {
       mutate((p) => ({
         ...p,
@@ -945,6 +981,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
 /** Deep-clone a clip (plain serialisable data) so nested keyframes/text/fx aren't shared. */
 function structuredCloneClip(c: Clip): Clip {
   return JSON.parse(JSON.stringify(c))
+}
+
+function round3(n: number): number {
+  return Math.round(n * 1000) / 1000
 }
 
 function trackName(type: TrackType): string {
