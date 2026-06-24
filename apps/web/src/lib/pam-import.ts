@@ -7,6 +7,8 @@
 import type { Clip, MediaAsset, Project, TextProperties, Track } from '#/types/editor'
 import * as storage from '#/lib/storage'
 import { probeMedia } from '#/lib/media'
+import { getBeats } from '#/lib/beat-detect'
+import { planBeatCut, clipsFromSegments, type BeatCutSource } from '#/lib/beat-cut'
 
 export interface PamBundle {
   iriePromo: 1
@@ -17,7 +19,9 @@ export interface PamBundle {
   durationSec: number
   persona?: string | null
   audio: string // data URL
-  cover: string // data URL
+  cover: string // data URL — canonical LP cover (also the poster/thumbnail)
+  /** Optional extra cover variations to beat-cut between (data URLs). */
+  covers?: string[]
   lyrics?: string
   lines?: { start: number; end: number; text: string }[]
   campaign?: NonNullable<Project['promo']>['campaign']
@@ -69,19 +73,9 @@ export async function buildPromoProject(json: string): Promise<string> {
   const height = 1920
   const fps = 30
 
-  const coverBlob = await dataUrlToBlob(b.cover)
   const audioBlob = await dataUrlToBlob(b.audio)
-  const coverFile = new File([coverBlob], 'cover', { type: coverBlob.type || 'image/jpeg' })
   const audioFile = new File([audioBlob], b.title || 'song', { type: audioBlob.type || 'audio/mpeg' })
 
-  let coverProbe: { duration: number; width: number; height: number; thumbnail?: string } = {
-    duration: 0, width: 0, height: 0,
-  }
-  try {
-    coverProbe = await probeMedia(coverFile, 'image')
-  } catch {
-    /* keep zeros */
-  }
   let audioDuration = b.durationSec || 0
   try {
     const ap = await probeMedia(audioFile, 'audio')
@@ -91,13 +85,35 @@ export async function buildPromoProject(json: string): Promise<string> {
   }
   const duration = Math.max(0.5, audioDuration || b.durationSec || 10)
 
-  const coverId = uid()
   const audioId = uid()
-  const coverAsset: MediaAsset = {
-    id: coverId, projectId, name: 'Cover', type: 'image', mimeType: coverBlob.type || 'image/jpeg',
-    size: coverBlob.size, duration: 0, width: coverProbe.width, height: coverProbe.height,
-    thumbnail: coverProbe.thumbnail, createdAt: now,
+
+  // One or more cover variations to beat-cut between. `cover` stays the canonical/poster image.
+  const imageUrls = b.covers && b.covers.length ? b.covers : [b.cover]
+  const coverImages: { id: string; asset: MediaAsset; blob: Blob }[] = []
+  for (let i = 0; i < imageUrls.length; i++) {
+    const blob = await dataUrlToBlob(imageUrls[i])
+    const file = new File([blob], `cover-${i}`, { type: blob.type || 'image/jpeg' })
+    let probe: { duration: number; width: number; height: number; thumbnail?: string } = {
+      duration: 0, width: 0, height: 0,
+    }
+    try {
+      probe = await probeMedia(file, 'image')
+    } catch {
+      /* keep zeros */
+    }
+    const id = uid()
+    coverImages.push({
+      id,
+      blob,
+      asset: {
+        id, projectId, name: i === 0 ? 'Cover' : `Cover ${i + 1}`, type: 'image',
+        mimeType: blob.type || 'image/jpeg', size: blob.size, duration: 0,
+        width: probe.width, height: probe.height, thumbnail: probe.thumbnail, createdAt: now,
+      },
+    })
   }
+  const coverId = coverImages[0].id // canonical cover id (kept for parity / poster)
+
   const audioAsset: MediaAsset = {
     id: audioId, projectId, name: b.title || 'Song', type: 'audio', mimeType: audioBlob.type || 'audio/mpeg',
     size: audioBlob.size, duration, width: 0, height: 0, createdAt: now,
@@ -107,15 +123,31 @@ export async function buildPromoProject(json: string): Promise<string> {
   const videoTrackId = uid()
   const audioTrackId = uid()
 
-  // Cover hero with a slow Ken-Burns push + drift (the Phase 1/6 keyframe engine).
-  const coverClip: Clip = {
-    id: uid(), trackId: videoTrackId, type: 'image', name: 'Cover', mediaId: coverId,
-    start: 0, duration, trimStart: 0, trimEnd: duration, volume: 1, fit: 'cover',
-    transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
-    keyframes: {
-      scale: [{ t: 0, value: 1, ease: 'inout' }, { t: duration, value: 1.12 }],
-      x: [{ t: 0, value: 0, ease: 'inout' }, { t: duration, value: 0.04 }],
-    },
+  // Video track: a single Ken-Burns hero for one image, or a beat-cut sequence for N.
+  let videoClips: Clip[]
+  if (coverImages.length > 1) {
+    let beats: number[] = []
+    try {
+      beats = await getBeats(audioId, audioBlob)
+    } catch {
+      /* no beats → planBeatCut even-splits across the covers */
+    }
+    const sources: BeatCutSource[] = coverImages.map((c) => ({ mediaId: c.id, type: 'image' }))
+    const segments = planBeatCut({ beats, songDuration: duration, sourceCount: sources.length, k: 2 })
+    videoClips = clipsFromSegments({ segments, sources, trackId: videoTrackId, makeId: uid })
+  } else {
+    // Cover hero with a slow Ken-Burns push + drift (the Phase 1/6 keyframe engine).
+    videoClips = [
+      {
+        id: uid(), trackId: videoTrackId, type: 'image', name: 'Cover', mediaId: coverId,
+        start: 0, duration, trimStart: 0, trimEnd: duration, volume: 1, fit: 'cover',
+        transform: { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 },
+        keyframes: {
+          scale: [{ t: 0, value: 1, ease: 'inout' }, { t: duration, value: 1.12 }],
+          x: [{ t: 0, value: 0, ease: 'inout' }, { t: duration, value: 0.04 }],
+        },
+      },
+    ]
   }
 
   const audioClip: Clip = {
@@ -140,7 +172,7 @@ export async function buildPromoProject(json: string): Promise<string> {
 
   const tracks: Track[] = [
     { id: textTrackId, type: 'text', name: 'Captions', muted: false, solo: false, volume: 1, clips: captionClips },
-    { id: videoTrackId, type: 'video', name: 'Cover', muted: false, solo: false, volume: 1, clips: [coverClip] },
+    { id: videoTrackId, type: 'video', name: 'Cover', muted: false, solo: false, volume: 1, clips: videoClips },
     { id: audioTrackId, type: 'audio', name: 'Song', muted: false, solo: false, volume: 1, clips: [audioClip] },
   ]
 
@@ -154,7 +186,7 @@ export async function buildPromoProject(json: string): Promise<string> {
   }
 
   await storage.saveProject(project)
-  await storage.saveMedia(coverAsset, coverBlob)
+  for (const c of coverImages) await storage.saveMedia(c.asset, c.blob)
   await storage.saveMedia(audioAsset, audioBlob)
   return projectId
 }
