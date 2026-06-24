@@ -9,6 +9,7 @@ import {
   Upload,
   Download,
   Music,
+  CircleHelp,
 } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import {
@@ -64,6 +65,7 @@ function ProjectsInner() {
   const [thumbs, setThumbs] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [name, setName] = useState('')
   const [preset, setPreset] = useState('landscape')
   const [creating, setCreating] = useState(false)
@@ -185,15 +187,35 @@ function ProjectsInner() {
             <span className="mr-1 hidden text-xs uppercase tracking-[0.18em] text-muted-foreground sm:inline">
               Bring in
             </span>
-            <Button variant="outline" size="sm" onClick={() => pamRef.current?.click()} disabled={importing}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => pamRef.current?.click()}
+              disabled={importing}
+              title="Choose a .iriepromo.json made by Pam's 'Send to Irie Cut'"
+            >
               <Music className="size-4 text-primary" /> From Pam
             </Button>
-            <Button variant="outline" size="sm" onClick={() => pamRef.current?.click()} disabled={importing}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => pamRef.current?.click()}
+              disabled={importing}
+              title="Choose a .iriepromo.json made by Video Studio's 'Send to Irie Cut'"
+            >
               <Film className="size-4 text-primary" /> From Video Studio
             </Button>
             <Button variant="outline" size="sm" onClick={() => importRef.current?.click()} disabled={importing}>
               <Upload className="size-4" /> {importing ? 'Importing…' : 'Project file'}
             </Button>
+            <button
+              onClick={() => setHelpOpen(true)}
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="How importing works"
+              title="How importing works"
+            >
+              <CircleHelp className="size-4" />
+            </button>
             <span className="mx-1 hidden h-5 w-px bg-border sm:inline-block" />
             <Button className="energy-cta font-display tracking-wider" onClick={() => setOpen(true)}>
               <Plus className="size-4" /> New project
@@ -229,10 +251,16 @@ function ProjectsInner() {
               <Button variant="outline" onClick={() => pamRef.current?.click()}>
                 <Film className="size-4 text-primary" /> From Video Studio
               </Button>
-              <Button className="gold-glow" onClick={() => setOpen(true)}>
+              <Button className="energy-cta font-display tracking-wider" onClick={() => setOpen(true)}>
                 <Plus className="size-4" /> New project
               </Button>
             </div>
+            <button
+              onClick={() => setHelpOpen(true)}
+              className="mt-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            >
+              <CircleHelp className="size-4" /> Not sure how? See how importing works
+            </button>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -335,6 +363,85 @@ function ProjectsInner() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </div>
+  )
+}
+
+/** What Pam / Video Studio export, and what to choose here. Kept in sync with lib/pam-import. */
+function ImportHelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl tracking-wide">Bringing your work into Irie Cut</DialogTitle>
+          <DialogDescription>
+            Irie Cut imports one <code className="rounded bg-secondary px-1 py-0.5 text-xs">.iriepromo.json</code>{' '}
+            file — the song, art and lyrics packed into a single bundle. Make it upstream, then choose it
+            here. Nothing uploads to a server; it&apos;s read right here in your browser.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6 py-2 text-sm">
+          <section>
+            <p className="font-display flex items-center gap-2 text-lg tracking-wide text-primary">
+              <Music className="size-4" /> From Pam — a song + its cover
+            </p>
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted-foreground">
+              <li>In Pam, open a finished take (it needs a square cover and audio).</li>
+              <li>
+                Click <strong className="text-foreground">Send to Irie Cut</strong>. Pam saves{' '}
+                <code className="rounded bg-secondary px-1 py-0.5 text-xs">&lt;Title&gt;.iriepromo.json</code> into
+                your <strong className="text-foreground">Pam Promos</strong> folder.
+              </li>
+              <li>
+                Back here, click <strong className="text-foreground">From Pam</strong> and choose that file.
+              </li>
+            </ol>
+            <p className="mt-2 pl-5 text-xs text-muted-foreground">
+              → You get the cover as a slow Ken-Burns hero, the song, and synced lyric captions. (Pam sends
+              one cover today; to beat-cut several covers, add more in the editor.)
+            </p>
+          </section>
+
+          <section>
+            <p className="font-display flex items-center gap-2 text-lg tracking-wide text-primary">
+              <Film className="size-4" /> From Video Studio — clips, optionally a song
+            </p>
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted-foreground">
+              <li>
+                In Video Studio → <strong className="text-foreground">Library</strong>, tick the clips you want.
+              </li>
+              <li>
+                Optional: <strong className="text-foreground">Add a song</strong> to cut them to the beat.
+              </li>
+              <li>
+                Click <strong className="text-foreground">Send to Irie Cut</strong> — it downloads{' '}
+                <code className="rounded bg-secondary px-1 py-0.5 text-xs">&lt;title&gt;.iriepromo.json</code>.
+              </li>
+              <li>
+                Back here, click <strong className="text-foreground">From Video Studio</strong> and choose that file.
+              </li>
+            </ol>
+            <p className="mt-2 pl-5 text-xs text-muted-foreground">
+              → With a song, the clips cut to the beat on import. Without one, they lay out as a clean sequence —
+              add a song in the editor, then “Cut to beat.”
+            </p>
+          </section>
+
+          <p className="rounded-lg border border-border bg-card/50 p-3 text-xs text-muted-foreground">
+            Either way you&apos;re choosing one <code className="rounded bg-secondary px-1 py-0.5 text-xs">.iriepromo.json</code>.
+            “Project file” is different — that&apos;s for re-opening an Irie Cut project you exported from here.
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button className="energy-cta font-display tracking-wider" onClick={() => onOpenChange(false)}>
+            Got it
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
