@@ -24,6 +24,7 @@ import {
 } from '#/stores/editor-store'
 import type { Clip, Track } from '#/types/editor'
 import { cn } from '#/lib/utils'
+import { keyframeTimes } from '#/lib/keyframes'
 import { roleLabel } from '#/lib/beats'
 import { Slider } from '#/components/ui/slider'
 import { useWaveform } from '#/hooks/use-waveform'
@@ -410,6 +411,7 @@ function ClipView({
   const asset = useEditorStore((s) => (clip.mediaId ? s.media.find((m) => m.id === clip.mediaId) : undefined))
   const peaks = useWaveform(clip.type === 'audio' ? clip.mediaId : undefined)
   const thumb = asset?.thumbnail
+  const kfTimes = keyframeTimes(clip)
 
   function beginDrag(e: React.PointerEvent, kind: 'move' | 'trim-l' | 'trim-r') {
     e.preventDefault()
@@ -531,6 +533,23 @@ function ClipView({
           </span>
         )}
       </div>
+      {/* Keyframe markers along the bottom: click to jump the playhead to one. */}
+      {kfTimes.length > 0 && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0.5 h-2">
+          {kfTimes.map((t) => (
+            <button
+              key={t}
+              onPointerDown={(e) => {
+                e.stopPropagation()
+                useEditorStore.getState().setCurrentTime(clip.start + t)
+              }}
+              title="Keyframe — jump playhead here"
+              className="pointer-events-auto absolute top-0 size-1.5 -translate-x-1/2 rotate-45 border border-black/40 bg-white/90 shadow-sm hover:bg-white"
+              style={{ left: clip.duration > 0 ? (t / clip.duration) * width : 0 }}
+            />
+          ))}
+        </div>
+      )}
       {/* Trim handles */}
       <div
         onPointerDown={(e) => beginDrag(e, 'trim-l')}
