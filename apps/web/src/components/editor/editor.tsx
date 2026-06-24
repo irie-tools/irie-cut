@@ -14,6 +14,7 @@ import { PropertiesPanel } from './properties-panel'
 import { Timeline } from './timeline'
 import { ProjectMenu } from './project-menu'
 import { ExportButton } from './export-dialog'
+import { ScoreButton } from './score-dialog'
 
 export function Editor({ projectId }: { projectId: string }) {
   const loadProject = useEditorStore((s) => s.loadProject)
@@ -103,7 +104,10 @@ export function Editor({ projectId }: { projectId: string }) {
             <HistoryButtons />
           </div>
         </div>
-        <ExportButton />
+        <div className="flex items-center gap-1">
+          <ScoreButton />
+          <ExportButton />
+        </div>
       </header>
 
       <ResizablePanelGroup orientation="vertical" className="flex-1">
