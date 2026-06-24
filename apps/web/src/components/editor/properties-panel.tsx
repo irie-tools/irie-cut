@@ -9,6 +9,7 @@ import { ScrollArea } from '#/components/ui/scroll-area'
 import { cn } from '#/lib/utils'
 import { FILTER_PRESETS } from '#/lib/filters'
 import { BEAT_ROLES, roleLabel } from '#/lib/beats'
+import { TRANSITIONS } from '#/lib/transitions'
 import {
   Select,
   SelectContent,
@@ -127,9 +128,67 @@ function ClipProps({ clip }: { clip: Clip }) {
         </Row>
       )}
 
+      {clip.type !== 'audio' && <TransitionControls clip={clip} />}
+
       {clip.type === 'text' && clip.text && (
         <TextProps clip={clip} text={clip.text} />
       )}
+    </>
+  )
+}
+
+function TransitionControls({ clip }: { clip: Clip }) {
+  const updateClip = useEditorStore((s) => s.updateClip)
+
+  function setSide(side: 'transitionIn' | 'transitionOut', type: string) {
+    if (type === 'none') {
+      updateClip(clip.id, { [side]: undefined })
+    } else {
+      const dur = clip[side]?.duration ?? 0.5
+      updateClip(clip.id, { [side]: { type, duration: dur } })
+    }
+  }
+
+  function setDuration(side: 'transitionIn' | 'transitionOut', duration: number) {
+    const type = clip[side]?.type
+    if (!type) return
+    updateClip(clip.id, { [side]: { type, duration: Math.max(0.1, duration) } }, `trd:${side}:${clip.id}`)
+  }
+
+  return (
+    <>
+      {(['transitionIn', 'transitionOut'] as const).map((side) => {
+        const spec = clip[side]
+        return (
+          <Row key={side} label={side === 'transitionIn' ? 'Transition in' : 'Transition out'}>
+            <div className="flex gap-2">
+              <Select value={spec?.type ?? 'none'} onValueChange={(v) => setSide(side, v ?? 'none')}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TRANSITIONS.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {spec && (
+                <Input
+                  type="number"
+                  step={0.1}
+                  min={0.1}
+                  value={spec.duration}
+                  onChange={(e) => setDuration(side, Number(e.target.value) || 0.5)}
+                  className="w-20"
+                  title="Duration (s)"
+                />
+              )}
+            </div>
+          </Row>
+        )
+      })}
     </>
   )
 }

@@ -60,6 +60,9 @@ export interface Clip {
   filter?: string
   /** Story beat role for producer handoff/EDL (see lib/beats). */
   role?: string
+  /** Enter/exit transitions (see lib/transitions). */
+  transitionIn?: { type: string; duration: number }
+  transitionOut?: { type: string; duration: number }
   text?: TextProperties
 }
 

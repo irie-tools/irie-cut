@@ -4,6 +4,7 @@
 
 import type { Clip, Project } from '#/types/editor'
 import { filterCss } from '#/lib/filters'
+import { transitionModifier, type TransitionModifier } from '#/lib/transitions'
 
 export interface RenderSources {
   getVideo: (clipId: string) => HTMLVideoElement | undefined
@@ -21,6 +22,22 @@ function containBox(srcW: number, srcH: number, dstW: number, dstH: number) {
   const w = srcW * scale
   const h = srcH * scale
   return { x: (dstW - w) / 2, y: (dstH - h) / 2, w, h }
+}
+
+/** Apply a transition modifier to the context. Caller must ctx.save() first. */
+function applyTransition(ctx: CanvasRenderingContext2D, m: TransitionModifier, W: number, H: number) {
+  ctx.globalAlpha *= m.alpha
+  if (m.dx || m.dy) ctx.translate(m.dx * W, m.dy * H)
+  if (m.scale !== 1) {
+    ctx.translate(W / 2, H / 2)
+    ctx.scale(m.scale, m.scale)
+    ctx.translate(-W / 2, -H / 2)
+  }
+  if (m.clip) {
+    ctx.beginPath()
+    ctx.rect(m.clip.x * W, m.clip.y * H, m.clip.w * W, m.clip.h * H)
+    ctx.clip()
+  }
 }
 
 function drawText(ctx: CanvasRenderingContext2D, clip: Clip, W: number, H: number) {
@@ -77,17 +94,21 @@ export function drawFrame(
         const el = sources.getVideo(clip.id)
         if (el && el.readyState >= 2 && el.videoWidth) {
           const box = containBox(el.videoWidth, el.videoHeight, W, H)
+          ctx.save()
+          applyTransition(ctx, transitionModifier(clip, time), W, H)
           ctx.filter = filterCss(clip.filter) || 'none'
           ctx.drawImage(el, box.x, box.y, box.w, box.h)
-          ctx.filter = 'none'
+          ctx.restore()
         }
       } else if (clip.type === 'image' && clip.mediaId) {
         const el = sources.getImage(clip.mediaId)
         if (el && el.complete && el.naturalWidth) {
           const box = containBox(el.naturalWidth, el.naturalHeight, W, H)
+          ctx.save()
+          applyTransition(ctx, transitionModifier(clip, time), W, H)
           ctx.filter = filterCss(clip.filter) || 'none'
           ctx.drawImage(el, box.x, box.y, box.w, box.h)
-          ctx.filter = 'none'
+          ctx.restore()
         }
       }
     }
@@ -97,7 +118,12 @@ export function drawFrame(
   for (const track of project.tracks) {
     if (track.type !== 'text') continue
     for (const clip of track.clips) {
-      if (clip.type === 'text' && clipActiveAt(clip, time)) drawText(ctx, clip, W, H)
+      if (clip.type === 'text' && clipActiveAt(clip, time)) {
+        ctx.save()
+        applyTransition(ctx, transitionModifier(clip, time), W, H)
+        drawText(ctx, clip, W, H)
+        ctx.restore()
+      }
     }
   }
 }
