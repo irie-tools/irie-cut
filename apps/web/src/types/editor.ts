@@ -132,7 +132,10 @@ export interface Clip {
    * animation (linear interpolation) overrides it. See lib/keyframes.ts.
    */
   keyframes?: Partial<
-    Record<'x' | 'y' | 'scale' | 'rotation' | 'opacity', { t: number; value: number }[]>
+    Record<
+      'x' | 'y' | 'scale' | 'rotation' | 'opacity',
+      { t: number; value: number; ease?: 'linear' | 'in' | 'out' | 'inout' | 'hold' }[]
+    >
   >
   text?: TextProperties
   shape?: ShapeProperties

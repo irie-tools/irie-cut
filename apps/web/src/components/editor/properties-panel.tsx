@@ -12,7 +12,9 @@ import {
   transformAt,
   keyframeAtTime,
   hasKeyframes,
+  EASINGS,
   type KeyframeProp,
+  type Easing,
 } from '#/lib/keyframes'
 import { FILTER_PRESETS } from '#/lib/filters'
 import { DEFAULT_ADJUST, isNeutralAdjust } from '#/lib/adjust'
@@ -206,8 +208,16 @@ const TRANSFORM_ROWS: TransformRowSpec[] = [
   { prop: 'y', label: 'Y', min: -1, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
 ]
 
+/** Read the easing currently shared by a clip's keyframes ('linear' if mixed/none). */
+function clipEasing(clip: Clip): string {
+  const all = (['x', 'y', 'scale', 'rotation', 'opacity'] as const).flatMap((p) => clip.keyframes?.[p] ?? [])
+  const eases = new Set(all.map((k) => k.ease ?? 'linear'))
+  return eases.size === 1 ? [...eases][0] : 'linear'
+}
+
 function TransformControls({ clip }: { clip: Clip }) {
   const clearKeyframes = useEditorStore((s) => s.clearKeyframes)
+  const setClipEasing = useEditorStore((s) => s.setClipEasing)
   // Subscribe to the playhead so keyframe state + interpolated slider values
   // follow the playhead as it scrubs/plays.
   const currentTime = useEditorStore((s) => s.currentTime)
@@ -236,6 +246,22 @@ function TransformControls({ clip }: { clip: Clip }) {
         <p className="-mt-2 text-[10px] text-muted-foreground">
           Playhead is outside this clip — move it over the clip to edit keyframes.
         </p>
+      )}
+      {anyKeys && (
+        <Row label="Motion easing">
+          <Select value={clipEasing(clip)} onValueChange={(v) => setClipEasing(clip.id, (v as Easing) ?? 'linear')}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {EASINGS.map((e) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Row>
       )}
       {TRANSFORM_ROWS.map((row) => (
         <KeyframeRow

@@ -9,9 +9,37 @@ import type { Clip } from '#/types/editor'
 
 export type KeyframeProp = 'x' | 'y' | 'scale' | 'rotation' | 'opacity'
 
+/** Easing applied to the segment that STARTS at a keyframe. */
+export type Easing = 'linear' | 'in' | 'out' | 'inout' | 'hold'
+
+export const EASINGS: { id: Easing; label: string }[] = [
+  { id: 'linear', label: 'Linear' },
+  { id: 'inout', label: 'Smooth' },
+  { id: 'in', label: 'Ease in' },
+  { id: 'out', label: 'Ease out' },
+  { id: 'hold', label: 'Hold' },
+]
+
 export interface Keyframe {
   t: number
   value: number
+  ease?: Easing
+}
+
+/** Map a 0..1 progress through an easing curve. */
+export function applyEase(f: number, ease: Easing | undefined): number {
+  switch (ease) {
+    case 'in':
+      return f * f
+    case 'out':
+      return 1 - (1 - f) * (1 - f)
+    case 'inout':
+      return f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2
+    case 'hold':
+      return 0
+    default:
+      return f
+  }
 }
 
 export const KEYFRAME_PROPS: readonly KeyframeProp[] = ['x', 'y', 'scale', 'rotation', 'opacity']
@@ -42,7 +70,8 @@ export function keyframeValueAt(keys: Keyframe[] | undefined, t: number, fallbac
     if (t >= a.t && t <= b.t) {
       const span = b.t - a.t
       if (span <= 0) return b.value
-      return a.value + (b.value - a.value) * ((t - a.t) / span)
+      const f = applyEase((t - a.t) / span, a.ease)
+      return a.value + (b.value - a.value) * f
     }
   }
   return last.value
@@ -96,8 +125,9 @@ export function upsertKeyframe(
   value: number,
   eps = 1e-3,
 ): Keyframe[] {
+  const prev = keys?.find((k) => Math.abs(k.t - t) <= eps)
   const next = keys ? keys.filter((k) => Math.abs(k.t - t) > eps) : []
-  next.push({ t, value })
+  next.push(prev?.ease ? { t, value, ease: prev.ease } : { t, value })
   next.sort((a, b) => a.t - b.t)
   return next
 }

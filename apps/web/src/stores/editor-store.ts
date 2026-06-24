@@ -16,7 +16,9 @@ import { DEFAULT_STILL_DURATION, DEFAULT_SHAPES } from '#/types/editor'
 import {
   upsertKeyframe,
   removeKeyframeAt,
+  KEYFRAME_PROPS,
   type KeyframeProp,
+  type Easing,
 } from '#/lib/keyframes'
 import * as storage from '#/lib/storage'
 import { detectMediaType, probeMedia } from '#/lib/media'
@@ -103,6 +105,7 @@ interface EditorState {
   ) => void
   removeKeyframe: (clipId: string, prop: KeyframeProp, t: number) => void
   clearKeyframes: (clipId: string, prop?: KeyframeProp) => void
+  setClipEasing: (clipId: string, ease: Easing) => void
   applyTextPreset: (clipId: string, preset: 'none' | 'fade' | 'pop' | 'slide' | 'typewriter') => void
   setVolumeKeyframe: (clipId: string, t: number, value: number, coalesceKey?: string) => void
   removeVolumeKeyframe: (clipId: string, t: number) => void
@@ -586,6 +589,24 @@ export const useEditorStore = create<EditorState>((set, get) => {
         tracks: p.tracks.map((tr) => ({
           ...tr,
           clips: tr.clips.map((c) => (c.id === clipId ? { ...c, volumeKeyframes: undefined } : c)),
+        })),
+      }))
+    },
+
+    setClipEasing(clipId, ease) {
+      mutate((p) => ({
+        ...p,
+        tracks: p.tracks.map((tr) => ({
+          ...tr,
+          clips: tr.clips.map((c) => {
+            if (c.id !== clipId || !c.keyframes) return c
+            const keyframes = { ...c.keyframes }
+            for (const prop of KEYFRAME_PROPS) {
+              const arr = keyframes[prop]
+              if (arr) keyframes[prop] = arr.map((k) => ({ ...k, ease }))
+            }
+            return { ...c, keyframes }
+          }),
         })),
       }))
     },
