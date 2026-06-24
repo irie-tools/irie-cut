@@ -28,9 +28,12 @@ _Spec date: 2026-06-24._
 > rides along) or a **sequential** layout (no song) from images and/or clips — reusing the
 > media-agnostic engine (`sequentialClips` added for the no-song case). A separate **"Import from
 > Video Studio"** button triggers the same importer; Pam imports are unchanged (`promo.source` gains
-> `'studio'`). The Video Studio **"Send to Irie Cut"** writer is a follow-up in that repo. Verified
-> in-browser: studio+song → 7 beat-cut video clips; studio no-song → 2 sequential clips (no audio
-> track); Pam multi-cover → identical. See `STUDIO-HANDOFF-SPEC.md`.
+> `'studio'`). The Video Studio **"Send to Irie Cut"** writer is **also built** (in the
+> `irie-video-studio` repo: `/api/irie-cut` + `lib/irie-cut.ts` + Library-page selection/song/CTA).
+> **Full loop verified in-browser, both apps:** Video Studio "Send to Irie Cut" (2 clips + a song) →
+> `.iriepromo.json` → Irie Cut "Import from Video Studio" → 7 beat-cut video clips on the song's
+> beats. Also: studio no-song → 2 sequential clips (no audio track); Pam multi-cover → identical
+> (regression). See `STUDIO-HANDOFF-SPEC.md`.
 > **Queued next (spec below):** 1.4 promo-template gallery (the import already assembles a full
 > starter promo), 1.2-v2 word-level karaoke captions (needs Whisper word timings), 2.3 silence
 > removal (talking-head), and the Tier-3 publish-to-Bandstand/Vision targets.
