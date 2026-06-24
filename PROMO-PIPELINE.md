@@ -21,6 +21,16 @@ _Spec date: 2026-06-24._
 > Video Studio, never inside Irie Cut) can later be dropped in as *accents*; that handoff is
 > deferred. Verified in-browser: 3 covers + a click-track song → 7 clips cycling 0,1,2 on the beats;
 > standalone action + single-step undo. See `BEAT-CUT-SPEC.md`.
+>
+> **Update (2026-06-24): Video Studio → Irie Cut handoff (Irie Cut side) is BUILT & VERIFIED.** The
+> `.iriepromo.json` envelope is now shared across lanes: it optionally carries **`clips[]`** (video
+> data-URLs) and the **song is optional**. `buildPromoProject` assembles a **beat-cut** (when a song
+> rides along) or a **sequential** layout (no song) from images and/or clips — reusing the
+> media-agnostic engine (`sequentialClips` added for the no-song case). A separate **"Import from
+> Video Studio"** button triggers the same importer; Pam imports are unchanged (`promo.source` gains
+> `'studio'`). The Video Studio **"Send to Irie Cut"** writer is a follow-up in that repo. Verified
+> in-browser: studio+song → 7 beat-cut video clips; studio no-song → 2 sequential clips (no audio
+> track); Pam multi-cover → identical. See `STUDIO-HANDOFF-SPEC.md`.
 > **Queued next (spec below):** 1.4 promo-template gallery (the import already assembles a full
 > starter promo), 1.2-v2 word-level karaoke captions (needs Whisper word timings), 2.3 silence
 > removal (talking-head), and the Tier-3 publish-to-Bandstand/Vision targets.
