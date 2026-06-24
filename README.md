@@ -49,10 +49,19 @@ working features (the prototype's were largely placeholders).
 - **Story beats** (hook/problem/proof/product/human/benefit/CTA) → structured **EDL** and **cutdown** JSON export.
 - **Creative scorecard** — a real 0–100 score (hook, CTA, length, caption coverage, audio, pacing, aspect) with inline fixes.
 
+**Music promo** (the make-your-own-music-video lane)
+- **Beat-cut** — Pam's N cover variations (or any selected clips) cut to the song's beat; engine is media-agnostic (`lib/beat-cut.ts`).
+- **Ecosystem handoffs** — one-click **From Pam** and **From Video Studio** imports (`.iriepromo.json`); see [IMPORTING.md](IMPORTING.md).
+- **Cover motion** — a cinematic multi-phase Ken-Burns that actually moves across a full song, plus a Motion preset menu (`lib/motion.ts`).
+- **Karaoke captions** — re-sync lyrics to the **actual vocal** with Whisper word-timings (keeps your exact lyrics) and **word-by-word highlight** in preview + export (`lib/lyric-sync.ts`).
+- **Sound bar** — an on-frame audio spectrum visualizer (FFT), mirrored so the bass pumps at both ends, with a bass-colour flash; bakes into the export (`lib/audio-spectrum.ts`).
+
 **AI assist** (optional, see below)
-- Marketing copy (hooks/CTAs/captions/scripts), image generation, and auto-captions.
+- Marketing copy (hooks/CTAs/captions/scripts), image generation, auto-captions, and audio-accurate caption re-sync (Whisper).
 
 **Private by default** — projects and media persist in IndexedDB; the only network calls are the optional AI endpoints.
+
+> **Where this is headed:** see [SESSION-NOTES.md](SESSION-NOTES.md) for the 2026-06-24 build log and an honest read on turning this into a paid "bring-your-own-song → karaoke music video" SaaS.
 
 ---
 
