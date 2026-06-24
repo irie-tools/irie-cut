@@ -13,6 +13,7 @@ import { Progress } from '#/components/ui/progress'
 import { useEditorStore, projectDuration } from '#/stores/editor-store'
 import { exportProject } from '#/lib/exporter'
 import { exportProjectWebCodecs, webCodecsSupported } from '#/lib/exporter-webcodecs'
+import { exportAllSizes, PLATFORM_SIZES, type SizePreset } from '#/lib/exporter-multi'
 import * as storage from '#/lib/storage'
 import { formatTimecode } from '#/lib/media'
 import { cn } from '#/lib/utils'
@@ -31,6 +32,33 @@ export function ExportButton() {
   const [error, setError] = useState('')
   const wcSupported = webCodecsSupported()
   const [engine, setEngine] = useState<'webcodecs' | 'realtime'>(wcSupported ? 'webcodecs' : 'realtime')
+  // Multi-size: pre-check the size matching the project's current aspect.
+  const [sizes, setSizes] = useState<Set<string>>(() => {
+    const ratio = project ? project.width / project.height : 1
+    const match = PLATFORM_SIZES.find((s) => Math.abs(s.w / s.h - ratio) < 0.02)
+    return new Set(match ? [match.id] : [])
+  })
+  const [sizeNote, setSizeNote] = useState('')
+  const chosenSizes: SizePreset[] = PLATFORM_SIZES.filter((s) => sizes.has(s.id))
+  const multi = engine === 'webcodecs' && wcSupported && chosenSizes.length > 0
+
+  function toggleSize(id: string) {
+    setSizes((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  }
 
   const total = projectDuration(project)
   const empty = total <= 0
@@ -72,17 +100,26 @@ export function ExportButton() {
     setProgress(0)
     setError('')
     try {
-      const onP = (f: number) => setProgress(Math.round(f * 100))
-      const { blob, extension } =
-        engine === 'webcodecs' && wcSupported
-          ? await exportProjectWebCodecs(project, getMediaUrl, (id) => storage.getMediaBlob(id), onP, {})
-          : await exportProject(project, getMediaUrl, onP)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${sanitize(project.name)}.${extension}`
-      a.click()
-      setTimeout(() => URL.revokeObjectURL(url), 10_000)
+      if (multi) {
+        const items = await exportAllSizes(
+          project,
+          getMediaUrl,
+          (id) => storage.getMediaBlob(id),
+          chosenSizes,
+          (f, size) => {
+            setProgress(Math.round(f * 100))
+            setSizeNote(size.label)
+          },
+        )
+        for (const it of items) downloadBlob(it.blob, `${sanitize(project.name)}-${it.size.id}.${it.extension}`)
+      } else {
+        const onP = (f: number) => setProgress(Math.round(f * 100))
+        const { blob, extension } =
+          engine === 'webcodecs' && wcSupported
+            ? await exportProjectWebCodecs(project, getMediaUrl, (id) => storage.getMediaBlob(id), onP, {})
+            : await exportProject(project, getMediaUrl, onP)
+        downloadBlob(blob, `${sanitize(project.name)}.${extension}`)
+      }
       setPhase('done')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Export failed.')
@@ -148,13 +185,42 @@ export function ExportButton() {
                     ? 'Rendered frame-by-frame for an exact, high-quality MP4.'
                     : 'Rendered in real time. Keep this tab focused during export.'}
                 </p>
+                {engine === 'webcodecs' && wcSupported && (
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="text-xs font-medium">Platform sizes</p>
+                    <p className="mb-2 mt-0.5 text-[11px] text-muted-foreground">
+                      One timeline → every size. Each is re-framed and exported as its own MP4.
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {PLATFORM_SIZES.map((s) => {
+                        const on = sizes.has(s.id)
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => toggleSize(s.id)}
+                            aria-pressed={on}
+                            className={cn(
+                              'flex items-center gap-2 rounded-md border px-2 py-1.5 text-left text-xs transition-colors',
+                              on ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:text-foreground',
+                            )}
+                          >
+                            <span className={cn('grid size-4 shrink-0 place-items-center rounded border', on ? 'border-primary bg-primary text-primary-foreground' : 'border-border')}>
+                              {on && <span className="text-[9px]">✓</span>}
+                            </span>
+                            {s.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {phase === 'exporting' && (
               <div className="space-y-3">
                 <Progress value={progress} />
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" /> Rendering… {progress}%
+                  <Loader2 className="size-4 animate-spin" /> Rendering{multi && sizeNote ? ` ${sizeNote}` : ''}… {progress}%
                 </p>
               </div>
             )}
