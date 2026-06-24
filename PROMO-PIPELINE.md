@@ -10,6 +10,17 @@ _Spec date: 2026-06-24._
 > the **Send to Irie Cut** writer (`packageForIrieCut` + route + Studio button) producing the
 > `.iriepromo.json`. Verified: sample bundle → promo, multi-size export, post-kit, beat-pulse; 26
 > Irie Cut tests + build clean; Pam changes type/lint-clean, zero test regression.
+>
+> **Update (2026-06-24): 2.1 multi-image beat-cut is BUILT & VERIFIED.** A Pam bundle may now carry
+> `covers[]` (N cover variations); >1 cover assembles a **beat-locked, Ken-Burns image sequence**
+> (hard cuts on every K-th detected beat, K=2 default, cycling the covers) instead of a single hero.
+> A standalone **`beatCutToBeats(clipIds, k)`** store action re-lays selected image/video clips to
+> the song's beats (one undo step) — surfaced via a "Beat-cut" properties-panel control (K = every
+> beat / 2 / 4) + command-palette entry. The engine (`lib/beat-cut.ts`, pure + unit-tested) is
+> **media-agnostic** — it cuts video clips identically, so generated motion clips (made in Irie
+> Video Studio, never inside Irie Cut) can later be dropped in as *accents*; that handoff is
+> deferred. Verified in-browser: 3 covers + a click-track song → 7 clips cycling 0,1,2 on the beats;
+> standalone action + single-step undo. See `BEAT-CUT-SPEC.md`.
 > **Queued next (spec below):** 1.4 promo-template gallery (the import already assembles a full
 > starter promo), 1.2-v2 word-level karaoke captions (needs Whisper word timings), 2.3 silence
 > removal (talking-head), and the Tier-3 publish-to-Bandstand/Vision targets.
@@ -134,9 +145,15 @@ extend it to place slots + apply the brand kit.
 
 ## Tier 2 — music-promo power (uses Pam stems)
 
-### 2.1 Beat-synced auto-cut
+### 2.1 Beat-synced auto-cut — ✅ BUILT (2026-06-24)
 **What:** Snap cuts / scene changes / cover-motion "hits" to the beat — turn raw footage or a
 static cover into a punchy, music-locked promo.
+**Shipped:** `lib/beat-cut.ts` (`planBeatCut` cuts every K-th beat cycling N sources;
+`clipsFromSegments` builds the clips with per-still Ken-Burns; `kenBurnsKeyframes`). Wired into
+Pam import (`covers[]` → beat-cut sequence) and a standalone `beatCutToBeats(clipIds, k=2)` store
+action with a properties-panel "Beat-cut" control + command-palette entry. **Media-agnostic** so it
+cuts video clips too (forward-looking for Irie Video Studio / Higgsfield clips as accents — handoff
+deferred, no generation ever inside Irie Cut). Hard cuts; default K=2; one undo step.
 **Data/seam:** beat detection already ships (markers + snap). Add `lib/auto-cut.ts`: given beat
 times (from the **drums stem** if Pam provided it — cleaner than the mix — else the mix, else `bpm`
 grid) + a set of media, auto-place clip boundaries / transform "punch" keyframes on the beats.
