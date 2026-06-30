@@ -47,17 +47,17 @@ working features (the prototype's were largely placeholders).
 - Format templates (UGC Reel, Square, Widescreen, Vertical Quote) that set the canvas and drop a starter layout.
 - **Captions** → valid `.srt` / `.vtt` export from text-clip timing.
 - **Story beats** (hook/problem/proof/product/human/benefit/CTA) → structured **EDL** and **cutdown** JSON export.
-- **Creative scorecard** — a real 0–100 score (hook, CTA, length, caption coverage, audio, pacing, aspect) with inline fixes.
+- **Export readiness scorecard** — a real 0–100 score with inline fixes for hook, CTA, length, caption coverage, audio, pacing, aspect, blank openings, visual gaps, text safe zones and audio balance.
 
 **Music promo** (the make-your-own-music-video lane)
 - **Beat-cut** — Pam's N cover variations (or any selected clips) cut to the song's beat; engine is media-agnostic (`lib/beat-cut.ts`).
 - **Ecosystem handoffs** — one-click **From Pam** and **From Video Studio** imports (`.iriepromo.json`); see [IMPORTING.md](IMPORTING.md).
 - **Cover motion** — a cinematic multi-phase Ken-Burns that actually moves across a full song, plus a Motion preset menu (`lib/motion.ts`).
-- **Karaoke captions** — re-sync lyrics to the **actual vocal** with Whisper word-timings (keeps your exact lyrics) and **word-by-word highlight** in preview + export (`lib/lyric-sync.ts`).
+- **Karaoke captions** — re-sync lyrics to the **actual vocal** with Whisper word-timings (keeps your exact lyrics), and auto-captions keep word timings for **word-by-word highlight** in preview + export (`lib/lyric-sync.ts`, `lib/caption-words.ts`).
 - **Sound bar** — an on-frame audio spectrum visualizer (FFT), mirrored so the bass pumps at both ends, with a bass-colour flash; bakes into the export (`lib/audio-spectrum.ts`).
 
 **AI assist** (optional, see below)
-- Marketing copy (hooks/CTAs/captions/scripts), image generation, auto-captions, and audio-accurate caption re-sync (Whisper).
+- Marketing copy (hooks/CTAs/captions/scripts), image generation, word-timed auto-captions, and audio-accurate caption re-sync (Whisper).
 
 **Private by default** — projects and media persist in IndexedDB; the only network calls are the optional AI endpoints.
 
@@ -108,7 +108,9 @@ irie-cut/
 │   │   └── vite.config.ts
 │   └── api/                  (legacy OpenCut echo worker — unused by the editor)
 ├── vercel.json               root config: builds apps/web, SPA rewrite, /api functions
-└── ARCHITECTURE.md           the code graph (read this to navigate the repo)
+├── ARCHITECTURE.md           the code graph (read this to navigate the repo)
+└── REMOTION-SUPERPOWERS-EXTRACTION.md
+                               read-only research notes and extracted ideas
 ```
 
 Full per-file annotations and the module/data-flow diagram are in [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -147,7 +149,7 @@ project env. Each feature uses the provider it's best at, and each falls back gr
 | --- | --- | --- |
 | Copy assist | Anthropic (Claude) → AI Gateway → OpenAI | `ANTHROPIC_API_KEY` *(and/or)* `AI_GATEWAY_API_KEY` / `OPENAI_API_KEY` |
 | Image generation | OpenAI `gpt-image-1` | `OPENAI_API_KEY` |
-| Auto-captions | OpenAI Whisper | `OPENAI_API_KEY` |
+| Auto-captions | OpenAI Whisper phrase + word timing | `OPENAI_API_KEY` |
 
 Copy assist prefers a direct `ANTHROPIC_API_KEY` (native Messages API, Claude Sonnet 4.6),
 because the Vercel AI Gateway free tier gates premium models. With only a gateway key it

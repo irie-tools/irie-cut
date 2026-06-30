@@ -33,7 +33,7 @@ export function ScoreButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        title="Creative score"
+        title="Export readiness"
         className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
         <Gauge className="size-4" />
@@ -43,9 +43,9 @@ export function ScoreButton() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Creative score</DialogTitle>
+            <DialogTitle>Export readiness</DialogTitle>
             <DialogDescription>
-              Heuristic checks for short-form / marketing video. Fixes are suggested inline.
+              Deterministic checks for the cut, captions, audio, and platform export.
             </DialogDescription>
           </DialogHeader>
 
@@ -69,24 +69,35 @@ export function ScoreButton() {
                 </div>
               </div>
 
-              <ul className="space-y-2">
-                {card.checks.map((c) => {
-                  const Icon = STATUS_ICON[c.status]
-                  return (
-                    <li key={c.id} className="flex gap-2.5">
-                      <Icon className={cn('mt-0.5 size-4 shrink-0', STATUS_COLOR[c.status])} />
-                      <div>
-                        <p className="text-sm font-medium">{c.label}</p>
-                        <p className="text-xs text-muted-foreground">{c.detail}</p>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
+              <CheckGroup title="Creative shape" checks={card.checks.filter((c) => (c.group ?? 'creative') === 'creative')} />
+              <CheckGroup title="Export checks" checks={card.checks.filter((c) => c.group === 'readiness')} />
             </div>
           )}
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+function CheckGroup({ title, checks }: { title: string; checks: ReturnType<typeof scoreProject>['checks'] }) {
+  if (!checks.length) return null
+  return (
+    <section className="space-y-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <ul className="space-y-2">
+        {checks.map((c) => {
+          const Icon = STATUS_ICON[c.status]
+          return (
+            <li key={c.id} className="flex gap-2.5">
+              <Icon className={cn('mt-0.5 size-4 shrink-0', STATUS_COLOR[c.status])} />
+              <div>
+                <p className="text-sm font-medium">{c.label}</p>
+                <p className="text-xs text-muted-foreground">{c.detail}</p>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }

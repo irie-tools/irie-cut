@@ -29,6 +29,7 @@ import { transcribe } from '#/lib/ai'
 import { syncLyricsToAudio } from '#/lib/lyric-sync'
 import { computeSpectrum, getSpectrum } from '#/lib/audio-spectrum'
 import { CAPTION_STYLES } from '#/lib/caption-styles'
+import { attachWordsToCaptions } from '#/lib/caption-words'
 import type { Template } from '#/lib/templates'
 
 export const PX_PER_SECOND_BASE = 50
@@ -100,7 +101,11 @@ interface EditorState {
   addClipFromMedia: (mediaId: string, atTime?: number) => void
   addTextClip: (content?: string) => void
   addShapeClip: (kind: 'rect' | 'ellipse' | 'line' | 'arrow') => void
-  addCaptions: (cues: { start: number; end: number; text: string }[], offset?: number) => void
+  addCaptions: (
+    cues: { start: number; end: number; text: string }[],
+    offset?: number,
+    words?: { start: number; end: number; text: string }[],
+  ) => void
   applyTemplate: (template: Template) => void
   updateClip: (clipId: string, patch: Partial<Clip>, coalesceKey?: string) => void
   setKeyframe: (
@@ -471,11 +476,12 @@ export const useEditorStore = create<EditorState>((set, get) => {
       })
     },
 
-    addCaptions(cues, offset = 0) {
+    addCaptions(cues, offset = 0, words = []) {
       if (!cues.length) return
       mutate((p) => {
         const { project, trackId } = trackForType(p, 'text')
-        const clips: Clip[] = cues.map((c) => {
+        const withWords = attachWordsToCaptions(cues, words)
+        const clips: Clip[] = withWords.map((c) => {
           const start = Math.max(0, offset + c.start)
           const duration = Math.max(0.3, (c.end || c.start + 2) - c.start)
           return {
@@ -488,7 +494,17 @@ export const useEditorStore = create<EditorState>((set, get) => {
             trimStart: 0,
             trimEnd: duration,
             volume: 1,
-            text: { ...DEFAULT_TEXT, content: c.text, fontSize: Math.round(project.height * 0.045), bold: true, y: 0.82, background: '#000000' },
+            text: {
+              ...DEFAULT_TEXT,
+              content: c.text,
+              fontSize: Math.round(project.height * 0.045),
+              bold: true,
+              y: 0.82,
+              background: '#000000',
+              karaoke: Boolean(c.words?.length),
+              karaokeColor: '#22d3ee',
+              words: c.words,
+            },
           }
         })
         return {

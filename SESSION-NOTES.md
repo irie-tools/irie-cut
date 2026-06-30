@@ -1,5 +1,17 @@
 # Session notes — 2026-06-24
 
+## Addendum — 2026-06-28
+
+Reviewed `/Users/irieagent/Documents/repo-research/remotion-superpowers` as a read-only research
+source. Verdict: extract ideas only. Implemented the useful caption piece without adopting Remotion,
+MCP servers, or external-service dependencies: auto-captions now keep Whisper word timings, attach
+them to text clips through `lib/caption-words.ts`, and render word-by-word highlight through the
+existing shared canvas renderer. The decision trail lives in `REMOTION-SUPERPOWERS-EXTRACTION.md`.
+
+Follow-up on 2026-06-30: added deterministic Export Readiness on top of the scorecard. The checks now
+catch blank openings, visual gaps, tiny or unsafe text, hard audio endings, and loud overlapping audio,
+then show the top issues in the export dialog before rendering.
+
 A "when I come back to this" note: what we built today, and an honest read on
 turning Irie Cut into a paid product. Everything below is **live** on
 `irie-cut.vercel.app` and committed to `main` (verified in a real browser, not

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Download, Loader2, Captions as CaptionsIcon, ListTree, Megaphone } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Download, Loader2, Captions as CaptionsIcon, ListTree, Megaphone, XCircle } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import {
   Dialog,
@@ -20,6 +20,7 @@ import { formatTimecode } from '#/lib/media'
 import { cn } from '#/lib/utils'
 import { buildSrt, buildVtt, buildCues } from '#/lib/captions'
 import { buildEdl, buildCutdown, beatSummary } from '#/lib/beats'
+import { scoreProject, type CheckStatus } from '#/lib/score'
 
 type Phase = 'idle' | 'exporting' | 'done' | 'error'
 
@@ -67,6 +68,9 @@ export function ExportButton() {
 
   const beats = project ? beatSummary(project) : { counts: {}, sequence: [] }
   const taggedCount = beats.sequence.length
+  const scorecard = project ? scoreProject(project) : null
+  const readinessChecks = scorecard?.checks.filter((c) => c.group === 'readiness') ?? []
+  const readinessIssues = readinessChecks.filter((c) => c.status !== 'good')
 
   function download(content: string, ext: string, mime: string) {
     if (!project) return
@@ -198,6 +202,32 @@ export function ExportButton() {
                     ? 'Rendered frame-by-frame for an exact, high-quality MP4.'
                     : 'Rendered in real time. Keep this tab focused during export.'}
                 </p>
+                {scorecard && (
+                  <div className="rounded-lg border border-border p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <ReadinessIcon status={readinessIssues.some((c) => c.status === 'bad') ? 'bad' : readinessIssues.length ? 'warn' : 'good'} />
+                        Export readiness
+                      </div>
+                      <span className={cn('text-sm font-semibold tabular-nums', scorecard.overall >= 80 ? 'text-emerald-400' : scorecard.overall >= 55 ? 'text-amber-400' : 'text-destructive')}>
+                        {scorecard.overall}
+                      </span>
+                    </div>
+                    <div className="mt-2 space-y-1.5">
+                      {(readinessIssues.length ? readinessIssues.slice(0, 3) : readinessChecks.slice(0, 2)).map((c) => (
+                        <div key={c.id} className="flex gap-2 text-xs">
+                          <ReadinessIcon status={c.status} small />
+                          <span className="text-muted-foreground">{c.detail}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {readinessIssues.length > 3 && (
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        {readinessIssues.length - 3} more {readinessIssues.length - 3 === 1 ? 'issue' : 'issues'} in the header score panel.
+                      </p>
+                    )}
+                  </div>
+                )}
                 {engine === 'webcodecs' && wcSupported && (
                   <div className="rounded-lg border border-border p-3">
                     <p className="text-xs font-medium">Platform sizes</p>
@@ -347,4 +377,11 @@ export function ExportButton() {
 
 function sanitize(name: string): string {
   return name.replace(/[^a-z0-9-_ ]/gi, '').trim().replace(/\s+/g, '-') || 'irie-cut-export'
+}
+
+function ReadinessIcon({ status, small = false }: { status: CheckStatus; small?: boolean }) {
+  const cls = cn(small ? 'mt-0.5 size-3 shrink-0' : 'size-4 shrink-0', status === 'good' ? 'text-emerald-400' : status === 'warn' ? 'text-amber-400' : 'text-destructive')
+  if (status === 'good') return <CheckCircle2 className={cls} />
+  if (status === 'warn') return <AlertTriangle className={cls} />
+  return <XCircle className={cls} />
 }

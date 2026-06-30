@@ -174,9 +174,9 @@ function AutoCaptions() {
     try {
       const blob = await getMediaBlob(clip.mediaId)
       if (!blob) throw new Error('Audio not found.')
-      const { cues } = await transcribe(blob)
-      addCaptions(cues, clip.start)
-      setDone(`Added ${cues.length} caption(s).`)
+      const { cues, words } = await transcribe(blob)
+      addCaptions(cues, clip.start, words)
+      setDone(`Added ${cues.length} caption(s)${words.length ? ' with word timing' : ''}.`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed')
     } finally {

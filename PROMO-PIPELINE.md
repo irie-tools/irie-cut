@@ -124,8 +124,9 @@ captions on the timeline at the right times; round-trip a known song and check c
 (line "pop"/"slide"/"karaoke highlight") — the muted-feed promo standard.
 **Data/seam:** a `captionStyle` applied across a track: font/size/stroke/shadow/position +
 a text preset. v1 = **line-level** using the animated text presets already shipped
-(`applyTextPreset`). v2 = **word-level karaoke highlight** (needs word timestamps: Pam `words[]`
-if present, else Whisper `verbose_json` word timings) — a new per-word reveal in `drawText`.
+(`applyTextPreset`). v2 = **word-level karaoke highlight** now has the core timing path:
+auto-captions preserve Whisper `words[]`, attach them to `TextProperties.words`, and render through
+the existing karaoke path in `drawText`.
 **Store:** `styleCaptionTrack(trackId, style, preset)` — batch-applies to every caption clip
 (one undo step).
 **UI:** a "Caption style" section (presets gallery: Bold Pop, Karaoke, Minimal, Subtitle) + apply.

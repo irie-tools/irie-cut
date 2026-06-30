@@ -207,6 +207,12 @@ transitions** (spin/glitch/zoom-blur/vertical wipes), and **auto-reframe** betwe
 design pass (real-over-promised): subject/face-tracked reframe, 3D-LUT/WebGPU effect graph, motion
 tracking, stabilization, AI voice-cleanup/music, transcript-based editing.
 
+**Research extraction update (2026-06-28):** pulled one practical idea from the read-only
+`remotion-superpowers` research repo without adopting its Remotion/MCP stack. Auto-captions now keep
+Whisper word timings and attach them to text clips for word-by-word highlight in preview and export.
+Follow-up (2026-06-30): added deterministic Export Readiness checks to `scoreProject()` and surfaced
+the top issues in the export modal. See `REMOTION-SUPERPOWERS-EXTRACTION.md`.
+
 </details>
 <details><summary>Original design</summary>
 

@@ -147,8 +147,10 @@ sequenceDiagram
 | `media.ts` | Probe uploaded files (duration/dimensions), generate thumbnails, time formatting. |
 | `waveform.ts` | Decode audio → cached normalized peak buckets. |
 | `captions.ts` | Build `.srt` / `.vtt` from text clips. |
+| `caption-words.ts` | Attach Whisper word timings to caption cues as clip-local karaoke words. |
+| `caption-styles.ts` | Reusable caption track style presets. |
 | `beats.ts` | Story-beat roles + `buildEdl()` / `buildCutdown()` / `beatSummary()`. |
-| `score.ts` | `scoreProject()` — the real creative scorecard heuristics. |
+| `score.ts` | `scoreProject()` — creative score + deterministic export-readiness checks. |
 | `templates.ts` | Format templates (ratio + starter layout specs). |
 | `ai.ts` | Client wrappers for the `/api/ai-*` endpoints. |
 | `utils.ts` | `cn()` class helper. |
@@ -165,11 +167,11 @@ sequenceDiagram
 | --- | --- |
 | `editor.tsx` | **Shell.** Loads the project, mounts playback, global keyboard shortcuts (space, S split, M marker, ⌘Z undo/redo, arrows), lays out the resizable panels, header (undo/redo, score, export). |
 | `media-panel.tsx` | Left panel tabs: Media (import + assets), Text, Templates, AI. |
-| `ai-panel.tsx` | AI tab UI: copy assist, image gen, auto-captions. |
+| `ai-panel.tsx` | AI tab UI: copy assist, image gen, auto-captions with optional word timing. |
 | `preview-panel.tsx` | Center canvas + transport + master volume; owns the render/sync loop and hidden media elements. |
 | `properties-panel.tsx` | Right panel: selected-clip props (timing, role, volume, speed, filter, transform, transitions, text) or project settings. |
 | `timeline.tsx` | The timeline: toolbar, ruler + markers, track-header gutter (mute/solo/lock/volume/reorder), clips (drag/trim/snap, filmstrip thumbnails, waveforms, role badges). |
-| `export-dialog.tsx` | Export modal: MP4 render + caption (.srt/.vtt) + edit-plan (EDL/cutdown) downloads. |
+| `export-dialog.tsx` | Export modal: readiness summary, MP4 render, caption (.srt/.vtt), edit-plan (EDL/cutdown), and post-kit downloads. |
 | `score-dialog.tsx` | Creative scorecard modal + header score badge. |
 | `project-menu.tsx` | Inline-editable project title. |
 
@@ -197,6 +199,11 @@ shadcn / base-ui primitives (button, dialog, slider, select, tabs, …). Generat
 | Add an export/producer artifact | a `lib/*.ts` builder + a button in `export-dialog.tsx` |
 | Add an AI capability | a function in `/api` + a wrapper in `lib/ai.ts` + UI in `ai-panel.tsx` |
 | Change scoring | `lib/score.ts` (`scoreProject`) |
+
+## Research imports
+- `REMOTION-SUPERPOWERS-EXTRACTION.md` records the 2026-06-28 read-only research pass over `/Users/irieagent/Documents/repo-research/remotion-superpowers`.
+- Source boundary: extract workflow patterns only. Do not vendor Remotion, MCP configs, hook scripts, or external-service dependencies into the editor core.
+- Implemented pulls: auto-captions preserve Whisper word timings via `caption-words.ts`; `scoreProject()` now includes deterministic export-readiness checks that surface in the score dialog and export modal.
 
 ## Invariants worth keeping
 - **Preview == export:** route any new pixel/audio behavior through `renderer.ts` / `audio.ts` so both stay in sync.
