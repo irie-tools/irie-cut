@@ -8,6 +8,13 @@ titles and captions, score the cut, and export an MP4 — no account, no waterma
 uploaded. Your media lives in the browser (IndexedDB) and every frame is rendered
 on-device.
 
+## Consolidation ruling (2026-07-02)
+
+**Ruling 1 — Irie Cut is THE editor of the ecosystem.** It owns timelines, cutting, captions,
+and export. Irie Media Studio is the producer/packager (asset library, brand kit, briefs, media
+packages) and its timeline work is frozen — no editor features get built there. Anything that
+needs cutting comes here. Full rulings: `~/Documents/Ecosystem audit/rulings-2026-07-02.md`.
+
 It belongs to the **Irie ecosystem** but carries its own music-forward voice: a warm
 near-black canvas, the Irie **red / gold / green** energy palette (a single **Irie-green
 `#25c281`** accent flowing through the app, off the old forked cyan), **Bebas Neue** marquee
