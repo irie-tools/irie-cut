@@ -116,6 +116,8 @@ export interface Clip {
   filter?: string
   /** Per-clip color adjustments, composed after the preset (see lib/adjust). */
   adjust?: { brightness: number; contrast: number; saturation: number; hue: number }
+  /** Per-clip quality helpers, composed in the shared renderer (see lib/quality). */
+  quality?: { enhance?: boolean; denoise?: number }
   /** Per-clip blend mode (canvas globalCompositeOperation); 'normal'/undefined = source-over. */
   blend?: string
   /** Per-clip reveal mask (see lib/mask). */

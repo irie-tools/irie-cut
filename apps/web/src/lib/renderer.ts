@@ -5,6 +5,7 @@
 import type { Clip, Project } from '#/types/editor'
 import { filterCss } from '#/lib/filters'
 import { adjustCss } from '#/lib/adjust'
+import { qualityCss } from '#/lib/quality'
 import { blendOp } from '#/lib/blend'
 import { applyClipMask } from '#/lib/mask'
 import { chromaKey } from '#/lib/chroma'
@@ -25,7 +26,7 @@ function getScratch(W: number, H: number): HTMLCanvasElement {
 
 /** Combined canvas `filter` for a clip: color-grade preset + per-clip adjustments. */
 function effectiveFilter(clip: Clip): string {
-  const combined = [filterCss(clip.filter), adjustCss(clip.adjust)].filter(Boolean).join(' ')
+  const combined = [filterCss(clip.filter), adjustCss(clip.adjust), qualityCss(clip.quality)].filter(Boolean).join(' ')
   return combined || 'none'
 }
 

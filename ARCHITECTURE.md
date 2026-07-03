@@ -128,7 +128,7 @@ sequenceDiagram
 ### `apps/web/src/types`
 | File | Role |
 | --- | --- |
-| `editor.ts` | **Domain types** — `Project` (incl. optional workflow intent), `Track`, `Clip` (incl. `transform`, `speed`, `filter`, `role`, `transitionIn/Out`), `TextProperties`, defaults. Start here to understand the data model. |
+| `editor.ts` | **Domain types** — `Project` (incl. optional workflow intent), `Track`, `Clip` (incl. `transform`, `speed`, `filter`, `quality`, `role`, `transitionIn/Out`), `TextProperties`, defaults. Start here to understand the data model. |
 
 ### `apps/web/src/stores`
 | File | Role |
@@ -143,6 +143,7 @@ sequenceDiagram
 | `audio.ts` | Mixing math: `effectiveGain()` (clip × track × master × mute/solo × fade), `anySolo()`. Shared by preview + export. |
 | `transitions.ts` | Per-clip in/out transitions; `transitionModifier()` returns alpha/translate/scale/clip. |
 | `filters.ts` | Color-grade presets (CSS `filter` strings) + `filterCss()`. |
+| `quality.ts` | Lightweight per-clip enhance/denoise helpers composed into the shared canvas filter chain. |
 | `storage.ts` | IndexedDB wrapper (projects, media metadata, media blobs). |
 | `media.ts` | Probe uploaded files (duration/dimensions), generate thumbnails, time formatting. |
 | `waveform.ts` | Decode audio → cached normalized peak buckets. |

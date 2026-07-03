@@ -18,6 +18,7 @@ import {
 } from '#/lib/keyframes'
 import { FILTER_PRESETS } from '#/lib/filters'
 import { DEFAULT_ADJUST, isNeutralAdjust } from '#/lib/adjust'
+import { isNeutralQuality } from '#/lib/quality'
 import { BLEND_MODES, blendOp } from '#/lib/blend'
 import { DEFAULT_MASK, MASK_SHAPES } from '#/lib/mask'
 import { DEFAULT_CHROMA } from '#/lib/chroma'
@@ -171,6 +172,8 @@ function ClipProps({ clip }: { clip: Clip }) {
       )}
 
       {(clip.type === 'video' || clip.type === 'image') && <AdjustControls clip={clip} />}
+
+      {(clip.type === 'video' || clip.type === 'image') && <QualityControls clip={clip} />}
 
       {(clip.type === 'video' || clip.type === 'image' || clip.type === 'shape') && (
         <Row label="Blend mode">
@@ -503,6 +506,49 @@ function AdjustControls({ clip }: { clip: Clip }) {
           />
         </Row>
       ))}
+    </>
+  )
+}
+
+function QualityControls({ clip }: { clip: Clip }) {
+  const updateClip = useEditorStore((s) => s.updateClip)
+  const quality = { enhance: false, denoise: 0, ...(clip.quality ?? {}) }
+  const neutral = isNeutralQuality(clip.quality)
+  const setQuality = (next: typeof quality, key?: string) =>
+    updateClip(clip.id, { quality: isNeutralQuality(next) ? undefined : next }, key)
+
+  return (
+    <>
+      <div className="flex items-center justify-between pt-1">
+        <Label className="text-xs font-semibold text-foreground">Quality</Label>
+        {!neutral && (
+          <button
+            onClick={() => updateClip(clip.id, { quality: undefined })}
+            className="text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            title="Reset quality helpers"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+      <button
+        onClick={() => setQuality({ ...quality, enhance: !quality.enhance })}
+        className={cn(
+          'w-full rounded-md border px-2 py-1.5 text-left text-xs transition-colors',
+          quality.enhance ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',
+        )}
+      >
+        Enhance quality
+      </button>
+      <Row label={`Reduce image noise · ${Math.round((quality.denoise ?? 0) * 100)}%`}>
+        <Slider
+          value={[quality.denoise ?? 0]}
+          min={0}
+          max={1}
+          step={0.01}
+          onValueChange={(v) => setQuality({ ...quality, denoise: sv(v) }, `quality:denoise:${clip.id}`)}
+        />
+      </Row>
     </>
   )
 }

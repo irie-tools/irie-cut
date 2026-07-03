@@ -41,6 +41,7 @@ working features (the prototype's were largely placeholders).
 - Multi-track timeline — video, image, audio and text tracks; drag-to-move with **snapping**, edge-trim, split at the playhead, duplicate, **ripple delete**, markers, zoom-to-fit.
 - Track headers — rename, mute, solo, lock, per-track volume, reorder, delete.
 - Per-clip **transform** (scale, opacity, rotation, x/y), **speed** (0.25–4×), and color-grade **filters**.
+- Per-clip **quality helpers** — enhance and noise reduction, baked into preview and export.
 - **Transitions** — fade, slide (4 dirs), zoom in/out, wipe — per-clip in/out, composited into preview *and* export.
 - **Undo/redo** with gesture coalescing (a drag or slider sweep is one step).
 - Timeline polish — video **filmstrip thumbnails** and decoded **audio waveforms** on clips.
