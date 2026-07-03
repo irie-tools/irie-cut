@@ -128,7 +128,7 @@ sequenceDiagram
 ### `apps/web/src/types`
 | File | Role |
 | --- | --- |
-| `editor.ts` | **Domain types** — `Project`, `Track`, `Clip` (incl. `transform`, `speed`, `filter`, `role`, `transitionIn/Out`), `TextProperties`, defaults. Start here to understand the data model. |
+| `editor.ts` | **Domain types** — `Project` (incl. optional workflow intent), `Track`, `Clip` (incl. `transform`, `speed`, `filter`, `role`, `transitionIn/Out`), `TextProperties`, defaults. Start here to understand the data model. |
 
 ### `apps/web/src/stores`
 | File | Role |
@@ -150,8 +150,8 @@ sequenceDiagram
 | `caption-words.ts` | Attach Whisper word timings to caption cues as clip-local karaoke words. |
 | `caption-styles.ts` | Reusable caption track style presets. |
 | `beats.ts` | Story-beat roles + `buildEdl()` / `buildCutdown()` / `beatSummary()`. |
-| `score.ts` | `scoreProject()` — creative score + deterministic export-readiness checks. |
-| `templates.ts` | Format templates (ratio + starter layout specs). |
+| `score.ts` | `scoreProject()` — creative score + deterministic export-readiness checks, including workflow-aware YouTube music-video checks. |
+| `templates.ts` | Format templates (ratio + starter layout specs, plus optional workflow/project defaults). |
 | `ai.ts` | Client wrappers for the `/api/ai-*` endpoints. |
 | `utils.ts` | `cn()` class helper. |
 
@@ -202,8 +202,9 @@ shadcn / base-ui primitives (button, dialog, slider, select, tabs, …). Generat
 
 ## Research imports
 - `REMOTION-SUPERPOWERS-EXTRACTION.md` records the 2026-06-28 read-only research pass over `/Users/irieagent/Documents/repo-research/remotion-superpowers`.
+- `AI-MUSIC-VIDEO-WORKFLOW.md` records the 2026-07-03 extraction from the faceless YouTube music-video markdown set under `/Users/irieagent/Documents/irie-tools/grabs/The_Best_AI_Side_Hustle_Ideas_NO_ONE_Is_Talking_About/knowledge`.
 - Source boundary: extract workflow patterns only. Do not vendor Remotion, MCP configs, hook scripts, or external-service dependencies into the editor core.
-- Implemented pulls: auto-captions preserve Whisper word timings via `caption-words.ts`; `scoreProject()` now includes deterministic export-readiness checks that surface in the score dialog and export modal.
+- Implemented pulls: auto-captions preserve Whisper word timings via `caption-words.ts`; `scoreProject()` includes deterministic export-readiness checks that surface in the score dialog and export modal; the YouTube Music Video template marks projects with `workflow.kind = "youtube-music-video"` for workflow-specific checks.
 
 ## Invariants worth keeping
 - **Preview == export:** route any new pixel/audio behavior through `renderer.ts` / `audio.ts` so both stay in sync.

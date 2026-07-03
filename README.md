@@ -51,7 +51,7 @@ working features (the prototype's were largely placeholders).
 - **In-browser MP4 export** (H.264 + AAC) via canvas `captureStream` + Web Audio + `MediaRecorder`.
 
 **Producer / studio**
-- Format templates (UGC Reel, Square, Widescreen, Vertical Quote) that set the canvas and drop a starter layout.
+- Format templates (UGC Reel, Square, Widescreen, Vertical Quote, YouTube Music Video) that set the canvas and drop a starter layout.
 - **Captions** → valid `.srt` / `.vtt` export from text-clip timing.
 - **Story beats** (hook/problem/proof/product/human/benefit/CTA) → structured **EDL** and **cutdown** JSON export.
 - **Export readiness scorecard** — a real 0–100 score with inline fixes for hook, CTA, length, caption coverage, audio, pacing, aspect, blank openings, visual gaps, text safe zones and audio balance.
@@ -62,6 +62,7 @@ working features (the prototype's were largely placeholders).
 - **Cover motion** — a cinematic multi-phase Ken-Burns that actually moves across a full song, plus a Motion preset menu (`lib/motion.ts`).
 - **Karaoke captions** — re-sync lyrics to the **actual vocal** with Whisper word-timings (keeps your exact lyrics), and auto-captions keep word timings for **word-by-word highlight** in preview + export (`lib/lyric-sync.ts`, `lib/caption-words.ts`).
 - **Sound bar** — an on-frame audio spectrum visualizer (FFT), mirrored so the bass pumps at both ends, with a bass-colour flash; bakes into the export (`lib/audio-spectrum.ts`).
+- **Faceless YouTube music-video workflow** — a 16:9 starter layout plus export-readiness checks for continuous music, loop/background variety, and chapter markers.
 
 **AI assist** (optional, see below)
 - Marketing copy (hooks/CTAs/captions/scripts), image generation, word-timed auto-captions, and audio-accurate caption re-sync (Whisper).
@@ -116,6 +117,8 @@ irie-cut/
 │   └── api/                  (legacy OpenCut echo worker — unused by the editor)
 ├── vercel.json               root config: builds apps/web, SPA rewrite, /api functions
 ├── ARCHITECTURE.md           the code graph (read this to navigate the repo)
+├── AI-MUSIC-VIDEO-WORKFLOW.md
+│                              faceless YouTube music-video extraction notes
 └── REMOTION-SUPERPOWERS-EXTRACTION.md
                                read-only research notes and extracted ideas
 ```

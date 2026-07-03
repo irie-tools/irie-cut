@@ -544,6 +544,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
           ...project,
           width: template.width,
           height: template.height,
+          background: template.background ?? project.background,
+          visualizer: template.visualizer ?? project.visualizer,
+          workflow: template.workflow ?? project.workflow,
           tracks: project.tracks.map((t) =>
             t.id === trackId ? { ...t, clips: [...t.clips, ...clips] } : t,
           ),

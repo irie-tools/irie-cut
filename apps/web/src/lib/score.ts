@@ -83,6 +83,30 @@ function hasLoudAudioOverlap(clips: Clip[]): boolean {
   return false
 }
 
+function clipCoverage(clips: Clip[], total: number): number {
+  if (!clips.length || total <= 0) return 0
+  const ranges = clips
+    .map((c) => ({ start: Math.max(0, c.start), end: Math.min(total, endOf(c)) }))
+    .filter((r) => r.end > r.start)
+    .sort((a, b) => a.start - b.start)
+  if (!ranges.length) return 0
+
+  let covered = 0
+  let start = ranges[0].start
+  let end = ranges[0].end
+  for (const r of ranges.slice(1)) {
+    if (r.start > end) {
+      covered += end - start
+      start = r.start
+      end = r.end
+    } else {
+      end = Math.max(end, r.end)
+    }
+  }
+  covered += end - start
+  return Math.min(1, covered / total)
+}
+
 export function scoreProject(project: Project): Scorecard {
   const clips = allClips(project)
   const total = duration(project)
@@ -293,6 +317,62 @@ export function scoreProject(project: Project): Scorecard {
     weight: 0.75,
     group: 'readiness',
   })
+
+  if (project.workflow?.kind === 'youtube-music-video') {
+    const ratio = project.width / project.height
+    const isWidescreen = Math.abs(ratio - 16 / 9) < 0.03
+    const isHd = project.width >= 1280 && project.height >= 720
+    checks.push({
+      id: 'yt-music-format',
+      label: 'Music-video format',
+      status: isWidescreen && isHd ? 'good' : 'bad',
+      detail: isWidescreen && isHd
+        ? `${project.width}x${project.height} is ready for a YouTube music upload.`
+        : 'Use a 16:9 HD canvas before assembling a long-form music video.',
+      weight: 1.25,
+      group: 'readiness',
+    })
+
+    const musicBedClips = audibles.filter((c) => c.volume > 0)
+    const audioCoverage = clipCoverage(musicBedClips, total)
+    checks.push({
+      id: 'yt-music-audio-bed',
+      label: 'Continuous music bed',
+      status: audioCoverage >= 0.95 ? 'good' : audioCoverage >= 0.75 ? 'warn' : 'bad',
+      detail: audioCoverage >= 0.95
+        ? 'Audio covers the full music-video runtime.'
+        : `${Math.round(audioCoverage * 100)}% of the runtime has audio - fill the gaps before export.`,
+      weight: 1.5,
+      group: 'readiness',
+    })
+
+    checks.push({
+      id: 'yt-music-loop-bank',
+      label: 'Loop clip variety',
+      status: visuals.length >= 3 ? 'good' : visuals.length >= 1 ? 'warn' : 'bad',
+      detail: visuals.length >= 3
+        ? `${visuals.length} visual loop/source clip(s) are available for variation.`
+        : visuals.length >= 1
+          ? 'Add 2-3 loop/background clips so the long mix does not feel static.'
+          : 'Add loop/background clips before assembling the music video.',
+      weight: 1,
+      group: 'readiness',
+    })
+
+    const markerCount = project.markers?.length ?? 0
+    checks.push({
+      id: 'yt-music-chapters',
+      label: 'Chapter markers',
+      status: markerCount >= 3 ? 'good' : markerCount > 0 ? 'warn' : 'bad',
+      detail: markerCount >= 3
+        ? `${markerCount} marker(s) can become YouTube chapters.`
+        : markerCount > 0
+          ? 'Add markers for each track so the upload can include chapters.'
+          : 'Add timeline markers for track starts before publishing a long music mix.',
+      weight: 1,
+      group: 'readiness',
+    })
+  }
 
   const totalWeight = checks.reduce((s, c) => s + c.weight, 0)
   const earned = checks.reduce((s, c) => s + c.weight * STATUS_VALUE[c.status], 0)

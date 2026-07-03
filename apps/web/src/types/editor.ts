@@ -204,6 +204,11 @@ export interface Project {
       rolloutNotes?: string
     } | null
   }
+  /** Workflow intent set by starter templates so readiness checks can be context-aware. */
+  workflow?: {
+    kind: 'youtube-music-video'
+    source: 'template'
+  }
   tracks: Track[]
 }
 

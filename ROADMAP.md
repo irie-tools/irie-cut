@@ -10,6 +10,11 @@ _Last updated: 2026-06-24. This is the working plan for turning Irie Cut into a 
 > transcript editing, subject-tracked reframe) are **deliberately deferred** with reasons — real over
 > promised. 26 unit tests pass; type-check + production build clean.
 
+> **Source extraction update (2026-07-03):** The faceless YouTube music-video markdown set was mapped
+> into Irie Cut as a first product slice: a YouTube Music Video starter layout plus workflow-aware
+> readiness checks for 16:9 HD format, continuous music bed, loop/background variety, and chapter
+> markers. See [AI-MUSIC-VIDEO-WORKFLOW.md](AI-MUSIC-VIDEO-WORKFLOW.md).
+
 ## North Star
 
 **Be the best in-browser video editor of 2026 — Premiere/CapCut-grade — and stay focused.**
