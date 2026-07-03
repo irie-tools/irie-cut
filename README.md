@@ -60,6 +60,7 @@ working features (the prototype's were largely placeholders).
 **Music promo** (the make-your-own-music-video lane)
 - **Beat-cut** — Pam's N cover variations (or any selected clips) cut to the song's beat; engine is media-agnostic (`lib/beat-cut.ts`).
 - **Ecosystem handoffs** — one-click **From Pam** and **From Video Studio** imports (`.iriepromo.json`); see [IMPORTING.md](IMPORTING.md).
+- **Pam Album imports** — `iriePromo: 2` YouTube Album Release folders become one long 16:9 album timeline with track audio, existing videos, album-card fallback visuals, lyrics captions, and chapter markers.
 - **Cover motion** — a cinematic multi-phase Ken-Burns that actually moves across a full song, plus a Motion preset menu (`lib/motion.ts`).
 - **Karaoke captions** — re-sync lyrics to the **actual vocal** with Whisper word-timings (keeps your exact lyrics), and auto-captions keep word timings for **word-by-word highlight** in preview + export (`lib/lyric-sync.ts`, `lib/caption-words.ts`).
 - **Sound bar** — an on-frame audio spectrum visualizer (FFT), mirrored so the bass pumps at both ends, with a bass-colour flash; bakes into the export (`lib/audio-spectrum.ts`).

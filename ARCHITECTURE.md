@@ -153,6 +153,7 @@ sequenceDiagram
 | `beats.ts` | Story-beat roles + `buildEdl()` / `buildCutdown()` / `beatSummary()`. |
 | `score.ts` | `scoreProject()` — creative score + deterministic export-readiness checks, including workflow-aware YouTube music-video checks. |
 | `templates.ts` | Format templates (ratio + starter layout specs, plus optional workflow/project defaults). |
+| `pam-import.ts` | Pam/Video Studio handoff importers: `iriePromo: 1` single promo bundles and `iriePromo: 2` Pam YouTube Album Release folders. |
 | `ai.ts` | Client wrappers for the `/api/ai-*` endpoints. |
 | `utils.ts` | `cn()` class helper. |
 

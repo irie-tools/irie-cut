@@ -111,7 +111,7 @@ export function scoreProject(project: Project): Scorecard {
   const clips = allClips(project)
   const total = duration(project)
   const texts = clips.filter((c) => c.type === 'text')
-  const visuals = clips.filter((c) => c.type === 'video' || c.type === 'image')
+  const visuals = clips.filter((c) => c.type === 'video' || c.type === 'image' || c.type === 'shape')
   const audibles = clips.filter((c) => c.type === 'video' || c.type === 'audio')
   const o = orientation(project)
   const checks: ScoreCheck[] = []
@@ -318,7 +318,7 @@ export function scoreProject(project: Project): Scorecard {
     group: 'readiness',
   })
 
-  if (project.workflow?.kind === 'youtube-music-video') {
+  if (project.workflow?.kind === 'youtube-music-video' || project.workflow?.kind === 'youtube-album-release') {
     const ratio = project.width / project.height
     const isWidescreen = Math.abs(ratio - 16 / 9) < 0.03
     const isHd = project.width >= 1280 && project.height >= 720

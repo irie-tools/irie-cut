@@ -208,8 +208,8 @@ export interface Project {
   }
   /** Workflow intent set by starter templates so readiness checks can be context-aware. */
   workflow?: {
-    kind: 'youtube-music-video'
-    source: 'template'
+    kind: 'youtube-music-video' | 'youtube-album-release'
+    source: 'template' | 'pam'
   }
   tracks: Track[]
 }

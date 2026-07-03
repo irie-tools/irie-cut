@@ -34,6 +34,34 @@ export interface PromoBundle {
   stems?: Record<string, string> | null
 }
 
+interface AlbumTimelineItem {
+  trackNo: number
+  title: string
+  songId?: string
+  takeId?: string
+  startSec: number
+  durationSec: number
+  audioPath?: string | null
+  lyricsPath?: string | null
+  descriptionPath?: string | null
+  thumbnailPromptPath?: string | null
+  existingVideoPath?: string | null
+  fallbackVisual?: string | null
+  captionMode?: string | null
+}
+
+interface AlbumBundle {
+  iriePromo: 2
+  source: 'pam'
+  kind: 'youtube_album_release'
+  manualOnly?: boolean
+  title?: string
+  artist?: string
+  albumTitle?: string
+  timeline?: AlbumTimelineItem[]
+  chapters?: { at: number; label: string }[]
+}
+
 function uid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -41,6 +69,106 @@ function uid(): string {
 
 async function dataUrlToBlob(url: string): Promise<Blob> {
   return (await fetch(url)).blob()
+}
+
+function normalizePath(p: string): string {
+  return p.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+/g, '/')
+}
+
+function dirname(p: string): string {
+  const n = normalizePath(p)
+  const i = n.lastIndexOf('/')
+  return i >= 0 ? n.slice(0, i) : ''
+}
+
+export function resolveRelativePath(baseDir: string, rel: string): string {
+  const parts = [...normalizePath(baseDir).split('/'), ...normalizePath(rel).split('/')].filter(Boolean)
+  const out: string[] = []
+  for (const part of parts) {
+    if (part === '.') continue
+    if (part === '..') out.pop()
+    else out.push(part)
+  }
+  return out.join('/')
+}
+
+function filePath(file: File): string {
+  return normalizePath((file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name)
+}
+
+function fileMap(files: File[]): Map<string, File> {
+  const map = new Map<string, File>()
+  for (const file of files) {
+    const path = filePath(file)
+    map.set(path, file)
+    map.set(file.name, file)
+  }
+  return map
+}
+
+function findByPath(map: Map<string, File>, baseDir: string, rel: string | null | undefined): File | null {
+  if (!rel) return null
+  const resolved = resolveRelativePath(baseDir, rel)
+  const exact = map.get(resolved)
+  if (exact) return exact
+  const suffix = normalizePath(rel).replace(/^(\.\.\/)+/, '')
+  const basename = suffix.split('/').pop() ?? ''
+  for (const [path, file] of map) {
+    if (path.endsWith(`/${suffix}`) || path === suffix || (basename && file.name === basename)) return file
+  }
+  return map.get(suffix) ?? map.get(basename) ?? null
+}
+
+function isAlbumBundle(value: unknown): value is AlbumBundle {
+  const b = value as Partial<AlbumBundle> | null
+  return !!b && b.iriePromo === 2 && b.kind === 'youtube_album_release' && b.source === 'pam'
+}
+
+async function probeFile(file: File, type: MediaAsset['type']) {
+  try {
+    return await probeMedia(file, type)
+  } catch {
+    return { duration: 0, width: 0, height: 0, thumbnail: undefined }
+  }
+}
+
+function mimeType(file: File, fallback: string): string {
+  return file.type || fallback
+}
+
+function trackTitle(track: AlbumTimelineItem): string {
+  return `${track.trackNo ? `${track.trackNo}. ` : ''}${track.title || 'Untitled track'}`
+}
+
+function parseLyricCaptions(text: string, track: AlbumTimelineItem): { start: number; end: number; text: string }[] {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  if (!lines.length) return []
+  const timed: { start: number; text: string }[] = []
+  const re = /^\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?]\s*(.+)$/
+  for (const line of lines) {
+    const m = line.match(re)
+    if (!m) continue
+    const min = Number(m[1])
+    const sec = Number(m[2])
+    const ms = Number(`0.${m[3] ?? '0'}`)
+    timed.push({ start: track.startSec + min * 60 + sec + ms, text: m[4].trim() })
+  }
+  if (timed.length) {
+    return timed.map((cue, i) => ({
+      start: cue.start,
+      end: timed[i + 1]?.start ?? track.startSec + track.durationSec,
+      text: cue.text,
+    })).filter((cue) => cue.text && cue.end > cue.start)
+  }
+
+  const usable = lines.filter((line) => !/^(\[.*]|\(|\{)/.test(line)).slice(0, 80)
+  if (!usable.length) return []
+  const slot = track.durationSec / usable.length
+  return usable.map((line, i) => ({
+    start: track.startSec + i * slot,
+    end: track.startSec + Math.min(track.durationSec, (i + 1) * slot),
+    text: line,
+  })).filter((cue) => cue.end - cue.start >= 0.4)
 }
 
 /** Default promo caption style: bold, lower-third, high-contrast (readable muted). */
@@ -247,5 +375,226 @@ export async function buildPromoProject(json: string): Promise<string> {
   await storage.saveProject(project)
   for (const m of media) await storage.saveMedia(m.asset, m.blob)
   if (audioAsset && audioBlob) await storage.saveMedia(audioAsset, audioBlob)
+  return projectId
+}
+
+export async function buildPamAlbumProject(input: FileList | File[]): Promise<string> {
+  const files = Array.from(input)
+  const entries = fileMap(files)
+  let packetFile: File | null = null
+  let packetPath = ''
+  let bundle: AlbumBundle | null = null
+
+  for (const file of files.filter((f) => f.name.endsWith('.json'))) {
+    try {
+      const parsed = JSON.parse(await file.text())
+      if (isAlbumBundle(parsed)) {
+        packetFile = file
+        packetPath = filePath(file)
+        bundle = parsed
+        break
+      }
+    } catch {
+      /* keep scanning */
+    }
+  }
+
+  if (!packetFile || !bundle) {
+    throw new Error('Choose the YouTube Album Release folder or its handoffs/irie_cut_album.iriepromo.json packet.')
+  }
+
+  const baseDir = dirname(packetPath)
+  const now = Date.now()
+  const projectId = uid()
+  const width = 1920
+  const height = 1080
+  const fps = 30
+  const textTrackId = uid()
+  const videoTrackId = uid()
+  const audioTrackId = uid()
+  const tracks = (bundle.timeline ?? []).slice().sort((a, b) => (a.trackNo || 0) - (b.trackNo || 0))
+  if (!tracks.length) throw new Error('Album packet has no timeline tracks.')
+
+  const media: { asset: MediaAsset; blob: Blob }[] = []
+  const textClips: Clip[] = []
+  const videoClips: Clip[] = []
+  const audioClips: Clip[] = []
+
+  for (const track of tracks) {
+    const start = Math.max(0, track.startSec || 0)
+    const duration = Math.max(1, track.durationSec || 1)
+    const title = trackTitle(track)
+
+    videoClips.push({
+      id: uid(),
+      trackId: videoTrackId,
+      type: 'shape',
+      name: `${title} card`,
+      start,
+      duration,
+      trimStart: 0,
+      trimEnd: duration,
+      volume: 1,
+      shape: { kind: 'rect', x: 0.5, y: 0.5, w: 1, h: 1, fill: '#050505', strokeWidth: 0 },
+    })
+    textClips.push({
+      id: uid(),
+      trackId: textTrackId,
+      type: 'text',
+      name: `${title} title`,
+      start,
+      duration: Math.min(8, duration),
+      trimStart: 0,
+      trimEnd: Math.min(8, duration),
+      volume: 1,
+      keyframes: { opacity: [{ t: 0, value: 0 }, { t: 0.4, value: 1 }, { t: Math.min(7.4, duration), value: 1 }, { t: Math.min(8, duration), value: 0 }] },
+      text: {
+        content: `${bundle.albumTitle || bundle.title || 'Album'}\n${title}`,
+        fontSize: Math.round(height * 0.07),
+        color: '#f2ede4',
+        fontFamily: 'Bebas Neue, sans-serif',
+        x: 0.5,
+        y: 0.42,
+        align: 'center',
+        bold: true,
+        italic: false,
+        strokeColor: '#000000',
+        strokeWidth: 4,
+        shadowColor: '#000000',
+        shadowBlur: 16,
+        shadowOffsetY: 4,
+        lineHeight: 1.05,
+      },
+    })
+
+    const videoFile = findByPath(entries, baseDir, track.existingVideoPath)
+    if (videoFile) {
+      const probe = await probeFile(videoFile, 'video')
+      const id = uid()
+      const asset: MediaAsset = {
+        id,
+        projectId,
+        name: videoFile.name,
+        type: 'video',
+        mimeType: mimeType(videoFile, 'video/mp4'),
+        size: videoFile.size,
+        duration: probe.duration,
+        width: probe.width,
+        height: probe.height,
+        thumbnail: probe.thumbnail,
+        createdAt: now,
+      }
+      media.push({ asset, blob: videoFile })
+      videoClips.push({
+        id: uid(),
+        trackId: videoTrackId,
+        type: 'video',
+        name: title,
+        mediaId: id,
+        start,
+        duration: Math.min(duration, probe.duration || duration),
+        trimStart: 0,
+        trimEnd: Math.min(duration, probe.duration || duration),
+        volume: 0,
+        fit: 'cover',
+        fadeIn: 0.2,
+        fadeOut: 0.4,
+      })
+    }
+
+    const audioFile = findByPath(entries, baseDir, track.audioPath)
+    if (audioFile) {
+      const probe = await probeFile(audioFile, 'audio')
+      const id = uid()
+      const asset: MediaAsset = {
+        id,
+        projectId,
+        name: audioFile.name,
+        type: 'audio',
+        mimeType: mimeType(audioFile, 'audio/mpeg'),
+        size: audioFile.size,
+        duration: probe.duration || duration,
+        width: 0,
+        height: 0,
+        createdAt: now,
+      }
+      media.push({ asset, blob: audioFile })
+      audioClips.push({
+        id: uid(),
+        trackId: audioTrackId,
+        type: 'audio',
+        name: title,
+        mediaId: id,
+        start,
+        duration,
+        trimStart: 0,
+        trimEnd: probe.duration || duration,
+        volume: 1,
+        fadeOut: Math.min(1.5, duration * 0.08),
+      })
+    }
+
+    const lyricsFile = findByPath(entries, baseDir, track.lyricsPath)
+    if (lyricsFile && track.captionMode !== 'none') {
+      const lyricText = await lyricsFile.text()
+      for (const cue of parseLyricCaptions(lyricText, track)) {
+        const cueDuration = Math.max(0.4, cue.end - cue.start)
+        textClips.push({
+          id: uid(),
+          trackId: textTrackId,
+          type: 'text',
+          name: `${title} lyric`,
+          start: cue.start,
+          duration: cueDuration,
+          trimStart: 0,
+          trimEnd: cueDuration,
+          volume: 1,
+          text: {
+            ...captionStyle(height),
+            content: cue.text,
+            fontSize: Math.round(height * 0.045),
+            y: 0.82,
+            background: '#000000',
+            bgRadius: 10,
+          },
+        })
+      }
+    }
+  }
+
+  const project: Project = {
+    id: projectId,
+    name: `${bundle.title || bundle.albumTitle || 'Pam album'} — YouTube album`,
+    createdAt: now,
+    updatedAt: now,
+    width,
+    height,
+    fps,
+    background: '#000000',
+    masterVolume: 1,
+    markers: (bundle.chapters ?? tracks.map((t) => ({ at: t.startSec, label: trackTitle(t) }))).map((c) => ({
+      id: uid(),
+      time: Math.max(0, c.at || 0),
+      label: c.label || 'Chapter',
+    })),
+    visualizer: { enabled: true, color: '#f2ede4', bassColor: '#ff5236', bassReactive: true, bassCenter: true, y: 0.9 },
+    promo: {
+      source: 'pam',
+      title: bundle.title || bundle.albumTitle || 'Pam album',
+      artist: bundle.artist,
+      campaign: {
+        rolloutNotes: 'Imported from a Pam YouTube Album Release packet (iriePromo v2). Review missing media placeholders before export.',
+      },
+    },
+    workflow: { kind: 'youtube-album-release', source: 'pam' },
+    tracks: [
+      { id: textTrackId, type: 'text', name: 'Titles & Lyrics', muted: false, solo: false, volume: 1, clips: textClips },
+      { id: videoTrackId, type: 'video', name: 'Album visuals', muted: false, solo: false, volume: 1, clips: videoClips },
+      { id: audioTrackId, type: 'audio', name: 'Album audio', muted: false, solo: false, volume: 1, clips: audioClips },
+    ],
+  }
+
+  await storage.saveProject(project)
+  for (const m of media) await storage.saveMedia(m.asset, m.blob)
   return projectId
 }

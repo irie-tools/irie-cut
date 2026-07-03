@@ -154,4 +154,32 @@ describe('scoreProject export readiness', () => {
     expect(check(p, 'yt-music-loop-bank').status).toBe('warn')
     expect(check(p, 'yt-music-chapters').status).toBe('bad')
   })
+
+  it('counts generated album-card shapes as visual coverage for Pam album imports', () => {
+    const p = project(
+      [
+        track('v', 'video', [
+          clip({
+            id: 'card',
+            type: 'shape',
+            start: 0,
+            duration: 180,
+            shape: { kind: 'rect', x: 0.5, y: 0.5, w: 1, h: 1, fill: '#050505', strokeWidth: 0 },
+          }),
+        ]),
+        track('a', 'audio', [clip({ trackId: 'a', type: 'audio', start: 0, duration: 180, fadeOut: 2 })]),
+      ],
+      {
+        workflow: { kind: 'youtube-album-release', source: 'pam' },
+        markers: [
+          { id: 'm1', time: 0, label: 'Track 1' },
+          { id: 'm2', time: 60, label: 'Track 2' },
+          { id: 'm3', time: 120, label: 'Track 3' },
+        ],
+      },
+    )
+
+    expect(check(p, 'visual-gaps').status).toBe('good')
+    expect(check(p, 'yt-music-loop-bank').status).toBe('warn')
+  })
 })

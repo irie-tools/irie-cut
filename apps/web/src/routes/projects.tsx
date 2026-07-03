@@ -33,7 +33,7 @@ import { ClientOnly } from '#/components/client-only'
 import type { Project } from '#/types/editor'
 import { getAllProjects, deleteProject, getProjectMedia } from '#/lib/storage'
 import { exportProjectBundle, importProjectBundle } from '#/lib/project-io'
-import { buildPromoProject } from '#/lib/pam-import'
+import { buildPamAlbumProject, buildPromoProject } from '#/lib/pam-import'
 import { createProject, projectDuration } from '#/stores/editor-store'
 import { formatDuration } from '#/lib/media'
 
@@ -72,6 +72,7 @@ function ProjectsInner() {
   const [importing, setImporting] = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
   const pamRef = useRef<HTMLInputElement>(null)
+  const pamAlbumRef = useRef<HTMLInputElement>(null)
 
   async function handleImport(file: File) {
     setImporting(true)
@@ -92,6 +93,19 @@ function ProjectsInner() {
       navigate({ to: '/editor/$projectId', params: { projectId: id } })
     } catch {
       alert('Could not import that bundle — make sure it is an Irie promo bundle (.iriepromo.json).')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  async function handlePamAlbumImport(files: FileList | null) {
+    if (!files?.length) return
+    setImporting(true)
+    try {
+      const id = await buildPamAlbumProject(files)
+      navigate({ to: '/editor/$projectId', params: { projectId: id } })
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not import that Pam album release folder.')
     } finally {
       setImporting(false)
     }
@@ -184,6 +198,18 @@ function ProjectsInner() {
                 e.target.value = ''
               }}
             />
+            <input
+              ref={pamAlbumRef}
+              type="file"
+              accept=".json,.mp3,.wav,.m4a,.mp4,.mov,.txt,.md,application/json,audio/*,video/*,text/plain"
+              multiple
+              hidden
+              {...{ webkitdirectory: '', directory: '' }}
+              onChange={(e) => {
+                void handlePamAlbumImport(e.target.files)
+                e.target.value = ''
+              }}
+            />
             <span className="mr-1 hidden text-xs uppercase tracking-[0.18em] text-muted-foreground sm:inline">
               Bring in
             </span>
@@ -195,6 +221,15 @@ function ProjectsInner() {
               title="Choose a .iriepromo.json made by Pam's 'Send to Irie Cut'"
             >
               <Music className="size-4 text-primary" /> From Pam
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => pamAlbumRef.current?.click()}
+              disabled={importing}
+              title="Choose a Pam YouTube Album Release folder with handoffs/irie_cut_album.iriepromo.json"
+            >
+              <Music className="size-4 text-primary" /> Pam Album
             </Button>
             <Button
               variant="outline"
@@ -247,6 +282,9 @@ function ProjectsInner() {
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
               <Button variant="outline" onClick={() => pamRef.current?.click()}>
                 <Music className="size-4 text-primary" /> From Pam
+              </Button>
+              <Button variant="outline" onClick={() => pamAlbumRef.current?.click()}>
+                <Music className="size-4 text-primary" /> Pam Album
               </Button>
               <Button variant="outline" onClick={() => pamRef.current?.click()}>
                 <Film className="size-4 text-primary" /> From Video Studio
@@ -377,8 +415,7 @@ function ImportHelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
         <DialogHeader>
           <DialogTitle className="font-display text-2xl tracking-wide">Bringing your work into Irie Cut</DialogTitle>
           <DialogDescription>
-            Irie Cut imports one <code className="rounded bg-secondary px-1 py-0.5 text-xs">.iriepromo.json</code>{' '}
-            file — the song, art and lyrics packed into a single bundle. Make it upstream, then choose it
+            Irie Cut imports promo files and Pam album release folders. Make them upstream, then choose them
             here. Nothing uploads to a server; it&apos;s read right here in your browser.
           </DialogDescription>
         </DialogHeader>
@@ -402,6 +439,27 @@ function ImportHelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
             <p className="mt-2 pl-5 text-xs text-muted-foreground">
               → You get the cover as a slow Ken-Burns hero, the song, and synced lyric captions. (Pam sends
               one cover today; to beat-cut several covers, add more in the editor.)
+            </p>
+          </section>
+
+          <section>
+            <p className="font-display flex items-center gap-2 text-lg tracking-wide text-primary">
+              <Music className="size-4" /> Pam Album — a full YouTube release
+            </p>
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted-foreground">
+              <li>In Pam, export a YouTube Album Release folder.</li>
+              <li>
+                Make sure it includes{' '}
+                <code className="rounded bg-secondary px-1 py-0.5 text-xs">handoffs/irie_cut_album.iriepromo.json</code>.
+              </li>
+              <li>
+                Back here, click <strong className="text-foreground">Pam Album</strong> and choose the whole release folder.
+              </li>
+            </ol>
+            <p className="mt-2 pl-5 text-xs text-muted-foreground">
+              → Irie Cut builds one long 16:9 album timeline, places tracks in order, imports audio/video files
+              when the browser provides them, creates album-card fallback visuals, adds lyrics captions, and drops
+              chapter markers on the timeline.
             </p>
           </section>
 
@@ -431,7 +489,8 @@ function ImportHelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
           </section>
 
           <p className="rounded-lg border border-border bg-card/50 p-3 text-xs text-muted-foreground">
-            Either way you&apos;re choosing one <code className="rounded bg-secondary px-1 py-0.5 text-xs">.iriepromo.json</code>.
+            Single-song and Video Studio imports choose one <code className="rounded bg-secondary px-1 py-0.5 text-xs">.iriepromo.json</code>.
+            Pam Album chooses the whole folder so the browser can read the audio, videos, lyrics, and handoff packet together.
             “Project file” is different — that&apos;s for re-opening an Irie Cut project you exported from here.
           </p>
         </div>

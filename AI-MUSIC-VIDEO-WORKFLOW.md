@@ -31,6 +31,8 @@ The source says "CapCut" for the assembly step. In Irie Cut terms that maps to:
 - Added a `YouTube Music Video` layout in `apps/web/src/lib/templates.ts`.
 - The template sets a 1920x1080 canvas, dark background, sound-bar visualizer defaults, and starter title text.
 - Added `project.workflow.kind = "youtube-music-video"` so readiness can be context-aware without changing every project.
+- Added Pam YouTube Album Release import support for `iriePromo: 2`, `kind: "youtube_album_release"` folders.
+- Album imports place track audio in order, use existing track videos when present, create album-card fallback visuals, add lyrics captions from lyrics files, and create timeline markers from chapters.
 - Added workflow-specific score checks in `apps/web/src/lib/score.ts`:
   - 16:9 HD music-video format
   - continuous music bed coverage
@@ -43,6 +45,7 @@ The source says "CapCut" for the assembly step. In Irie Cut terms that maps to:
 - No external Suno, Kling, Higgsfield, Google Flow, YouTube, or CapCut dependency was added.
 - No monetization claim is hard-coded. The source's YouTube policy claims should stay in docs/checklists unless verified from current platform guidance.
 - The broader side-hustle ideas in the source files belong to other Irie products, not Irie Cut.
+- Irie Cut cannot silently read sibling files from a single JSON import because browsers block that. Pam Album import asks the user to choose the whole release folder so the browser exposes relative paths safely.
 
 ## Next product slices
 
