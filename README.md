@@ -120,6 +120,8 @@ irie-cut/
 ├── ARCHITECTURE.md           the code graph (read this to navigate the repo)
 ├── AI-MUSIC-VIDEO-WORKFLOW.md
 │                              faceless YouTube music-video extraction notes
+├── VPS-MIGRATION-ASSESSMENT.md
+│                              current Vercel-to-VPS migration assessment
 └── REMOTION-SUPERPOWERS-EXTRACTION.md
                                read-only research notes and extracted ideas
 ```

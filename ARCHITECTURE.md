@@ -204,6 +204,7 @@ shadcn / base-ui primitives (button, dialog, slider, select, tabs, …). Generat
 ## Research imports
 - `REMOTION-SUPERPOWERS-EXTRACTION.md` records the 2026-06-28 read-only research pass over `/Users/irieagent/Documents/repo-research/remotion-superpowers`.
 - `AI-MUSIC-VIDEO-WORKFLOW.md` records the 2026-07-03 extraction from the faceless YouTube music-video markdown set under `/Users/irieagent/Documents/irie-tools/grabs/The_Best_AI_Side_Hustle_Ideas_NO_ONE_Is_Talking_About/knowledge`.
+- `VPS-MIGRATION-ASSESSMENT.md` records the 2026-07-03 research pass for moving Irie Cut from Vercel into the VPS/Cloudflare Media House lane.
 - Source boundary: extract workflow patterns only. Do not vendor Remotion, MCP configs, hook scripts, or external-service dependencies into the editor core.
 - Implemented pulls: auto-captions preserve Whisper word timings via `caption-words.ts`; `scoreProject()` includes deterministic export-readiness checks that surface in the score dialog and export modal; the YouTube Music Video template marks projects with `workflow.kind = "youtube-music-video"` for workflow-specific checks.
 
