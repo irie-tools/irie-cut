@@ -62,6 +62,59 @@ interface AlbumBundle {
   chapters?: { at: number; label: string }[]
 }
 
+export type PamAlbumVisualPreset = 'album-card' | 'lyric-video' | 'visualizer' | 'cinematic'
+export type PamAlbumCaptionStrategy = 'auto' | 'lyrics' | 'titles-only' | 'none'
+export type PamAlbumExportTarget = 'youtube-16x9' | 'shorts-9x16' | 'square-1x1'
+export type PamAlbumPrepAction = 'enhance' | 'denoise' | 'stabilize' | 'optical-flow'
+
+export interface PamAlbumBuildOptions {
+  visualPreset?: PamAlbumVisualPreset
+  captionStrategy?: PamAlbumCaptionStrategy
+  exportTargets?: PamAlbumExportTarget[]
+  prepActions?: PamAlbumPrepAction[]
+  assetOverrides?: Record<string, {
+    audioFile?: File
+    videoFile?: File
+    lyricsFile?: File
+  }>
+}
+
+export interface PamAlbumPreflightTrack {
+  key: string
+  trackNo: number
+  title: string
+  startSec: number
+  durationSec: number
+  audioFound: boolean
+  videoFound: boolean
+  lyricsFound: boolean
+  captionCount: number
+  fallbackVisual?: string | null
+  captionMode?: string | null
+  missing: ('audio' | 'video' | 'lyrics')[]
+}
+
+export interface PamAlbumPreflight {
+  packetPath: string
+  baseDir: string
+  title: string
+  artist?: string
+  albumTitle?: string
+  durationSec: number
+  trackCount: number
+  chapterCount: number
+  tracks: PamAlbumPreflightTrack[]
+  totals: {
+    audioFound: number
+    videoFound: number
+    lyricsFound: number
+    captions: number
+    missingAudio: number
+    missingVideo: number
+    missingLyrics: number
+  }
+}
+
 function uid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -124,6 +177,33 @@ function isAlbumBundle(value: unknown): value is AlbumBundle {
   return !!b && b.iriePromo === 2 && b.kind === 'youtube_album_release' && b.source === 'pam'
 }
 
+async function readAlbumBundle(input: FileList | File[]) {
+  const files = Array.from(input)
+  let packetFile: File | null = null
+  let packetPath = ''
+  let bundle: AlbumBundle | null = null
+
+  for (const file of files.filter((f) => f.name.endsWith('.json'))) {
+    try {
+      const parsed = JSON.parse(await file.text())
+      if (isAlbumBundle(parsed)) {
+        packetFile = file
+        packetPath = filePath(file)
+        bundle = parsed
+        break
+      }
+    } catch {
+      /* keep scanning */
+    }
+  }
+
+  if (!packetFile || !bundle) {
+    throw new Error('Choose the YouTube Album Release folder or its handoffs/irie_cut_album.iriepromo.json packet.')
+  }
+
+  return { files, entries: fileMap(files), packetPath, baseDir: dirname(packetPath), bundle }
+}
+
 async function probeFile(file: File, type: MediaAsset['type']) {
   try {
     return await probeMedia(file, type)
@@ -138,6 +218,10 @@ function mimeType(file: File, fallback: string): string {
 
 function trackTitle(track: AlbumTimelineItem): string {
   return `${track.trackNo ? `${track.trackNo}. ` : ''}${track.title || 'Untitled track'}`
+}
+
+function trackKey(track: AlbumTimelineItem): string {
+  return String(track.trackNo || track.title || track.startSec)
 }
 
 function parseLyricCaptions(text: string, track: AlbumTimelineItem): { start: number; end: number; text: string }[] {
@@ -378,32 +462,90 @@ export async function buildPromoProject(json: string): Promise<string> {
   return projectId
 }
 
-export async function buildPamAlbumProject(input: FileList | File[]): Promise<string> {
-  const files = Array.from(input)
-  const entries = fileMap(files)
-  let packetFile: File | null = null
-  let packetPath = ''
-  let bundle: AlbumBundle | null = null
+export async function analyzePamAlbumImport(input: FileList | File[]): Promise<PamAlbumPreflight> {
+  const { entries, packetPath, baseDir, bundle } = await readAlbumBundle(input)
+  const tracks = (bundle.timeline ?? []).slice().sort((a, b) => (a.trackNo || 0) - (b.trackNo || 0))
+  if (!tracks.length) throw new Error('Album packet has no timeline tracks.')
 
-  for (const file of files.filter((f) => f.name.endsWith('.json'))) {
-    try {
-      const parsed = JSON.parse(await file.text())
-      if (isAlbumBundle(parsed)) {
-        packetFile = file
-        packetPath = filePath(file)
-        bundle = parsed
-        break
-      }
-    } catch {
-      /* keep scanning */
+  const rows: PamAlbumPreflightTrack[] = []
+  for (const track of tracks) {
+    const audioFile = findByPath(entries, baseDir, track.audioPath)
+    const videoFile = findByPath(entries, baseDir, track.existingVideoPath)
+    const lyricsFile = findByPath(entries, baseDir, track.lyricsPath)
+    let captionCount = 0
+    if (lyricsFile && track.captionMode !== 'none') {
+      captionCount = parseLyricCaptions(await lyricsFile.text(), track).length
     }
+
+    const missing: PamAlbumPreflightTrack['missing'] = []
+    if (track.audioPath && !audioFile) missing.push('audio')
+    if (track.existingVideoPath && !videoFile) missing.push('video')
+    if (track.lyricsPath && !lyricsFile) missing.push('lyrics')
+
+    rows.push({
+      key: trackKey(track),
+      trackNo: track.trackNo,
+      title: track.title || 'Untitled track',
+      startSec: Math.max(0, track.startSec || 0),
+      durationSec: Math.max(1, track.durationSec || 1),
+      audioFound: !!audioFile,
+      videoFound: !!videoFile,
+      lyricsFound: !!lyricsFile,
+      captionCount,
+      fallbackVisual: track.fallbackVisual,
+      captionMode: track.captionMode,
+      missing,
+    })
   }
 
-  if (!packetFile || !bundle) {
-    throw new Error('Choose the YouTube Album Release folder or its handoffs/irie_cut_album.iriepromo.json packet.')
+  const durationSec = rows.reduce((max, track) => Math.max(max, track.startSec + track.durationSec), 0)
+  return {
+    packetPath,
+    baseDir,
+    title: bundle.title || bundle.albumTitle || 'Pam album',
+    artist: bundle.artist,
+    albumTitle: bundle.albumTitle,
+    durationSec,
+    trackCount: rows.length,
+    chapterCount: bundle.chapters?.length ?? rows.length,
+    tracks: rows,
+    totals: {
+      audioFound: rows.filter((t) => t.audioFound).length,
+      videoFound: rows.filter((t) => t.videoFound).length,
+      lyricsFound: rows.filter((t) => t.lyricsFound).length,
+      captions: rows.reduce((sum, t) => sum + t.captionCount, 0),
+      missingAudio: rows.filter((t) => t.missing.includes('audio')).length,
+      missingVideo: rows.filter((t) => t.missing.includes('video')).length,
+      missingLyrics: rows.filter((t) => t.missing.includes('lyrics')).length,
+    },
   }
+}
 
-  const baseDir = dirname(packetPath)
+function fallbackFill(preset: PamAlbumVisualPreset): string {
+  if (preset === 'lyric-video') return '#0b0b12'
+  if (preset === 'visualizer') return '#020617'
+  if (preset === 'cinematic') return '#101010'
+  return '#050505'
+}
+
+function titleY(preset: PamAlbumVisualPreset): number {
+  if (preset === 'lyric-video') return 0.34
+  if (preset === 'visualizer') return 0.38
+  return 0.42
+}
+
+function shouldCreateLyrics(strategy: PamAlbumCaptionStrategy, captionMode?: string | null): boolean {
+  if (strategy === 'none' || strategy === 'titles-only') return false
+  return captionMode !== 'none'
+}
+
+export async function buildPamAlbumProject(input: FileList | File[], options: PamAlbumBuildOptions = {}): Promise<string> {
+  const { entries, baseDir, bundle } = await readAlbumBundle(input)
+  const visualPreset = options.visualPreset ?? 'album-card'
+  const captionStrategy = options.captionStrategy ?? 'auto'
+  const exportTargets = options.exportTargets?.length ? options.exportTargets : ['youtube-16x9']
+  const prepActions = options.prepActions ?? []
+
   const now = Date.now()
   const projectId = uid()
   const width = 1920
@@ -424,6 +566,7 @@ export async function buildPamAlbumProject(input: FileList | File[]): Promise<st
     const start = Math.max(0, track.startSec || 0)
     const duration = Math.max(1, track.durationSec || 1)
     const title = trackTitle(track)
+    const overrides = options.assetOverrides?.[trackKey(track)]
 
     videoClips.push({
       id: uid(),
@@ -435,7 +578,7 @@ export async function buildPamAlbumProject(input: FileList | File[]): Promise<st
       trimStart: 0,
       trimEnd: duration,
       volume: 1,
-      shape: { kind: 'rect', x: 0.5, y: 0.5, w: 1, h: 1, fill: '#050505', strokeWidth: 0 },
+      shape: { kind: 'rect', x: 0.5, y: 0.5, w: 1, h: 1, fill: fallbackFill(visualPreset), strokeWidth: 0 },
     })
     textClips.push({
       id: uid(),
@@ -454,7 +597,7 @@ export async function buildPamAlbumProject(input: FileList | File[]): Promise<st
         color: '#f2ede4',
         fontFamily: 'Bebas Neue, sans-serif',
         x: 0.5,
-        y: 0.42,
+        y: titleY(visualPreset),
         align: 'center',
         bold: true,
         italic: false,
@@ -467,7 +610,7 @@ export async function buildPamAlbumProject(input: FileList | File[]): Promise<st
       },
     })
 
-    const videoFile = findByPath(entries, baseDir, track.existingVideoPath)
+    const videoFile = overrides?.videoFile ?? findByPath(entries, baseDir, track.existingVideoPath)
     if (videoFile) {
       const probe = await probeFile(videoFile, 'video')
       const id = uid()
@@ -502,7 +645,7 @@ export async function buildPamAlbumProject(input: FileList | File[]): Promise<st
       })
     }
 
-    const audioFile = findByPath(entries, baseDir, track.audioPath)
+    const audioFile = overrides?.audioFile ?? findByPath(entries, baseDir, track.audioPath)
     if (audioFile) {
       const probe = await probeFile(audioFile, 'audio')
       const id = uid()
@@ -534,8 +677,8 @@ export async function buildPamAlbumProject(input: FileList | File[]): Promise<st
       })
     }
 
-    const lyricsFile = findByPath(entries, baseDir, track.lyricsPath)
-    if (lyricsFile && track.captionMode !== 'none') {
+    const lyricsFile = overrides?.lyricsFile ?? findByPath(entries, baseDir, track.lyricsPath)
+    if (lyricsFile && shouldCreateLyrics(captionStrategy, track.captionMode)) {
       const lyricText = await lyricsFile.text()
       for (const cue of parseLyricCaptions(lyricText, track)) {
         const cueDuration = Math.max(0.4, cue.end - cue.start)
@@ -583,7 +726,19 @@ export async function buildPamAlbumProject(input: FileList | File[]): Promise<st
       title: bundle.title || bundle.albumTitle || 'Pam album',
       artist: bundle.artist,
       campaign: {
-        rolloutNotes: 'Imported from a Pam YouTube Album Release packet (iriePromo v2). Review missing media placeholders before export.',
+        teaserIdeas: [
+          `Visual preset: ${visualPreset}`,
+          `Caption strategy: ${captionStrategy}`,
+          `Export targets: ${exportTargets.join(', ')}`,
+          prepActions.length ? `Prep queue: ${prepActions.join(', ')}` : 'Prep queue: none selected',
+        ],
+        rolloutNotes: [
+          'Imported from a Pam YouTube Album Release packet (iriePromo v2).',
+          'Review missing media placeholders before export.',
+          prepActions.length
+            ? `Enhance/prep intents were captured for future processing: ${prepActions.join(', ')}.`
+            : 'No enhance/prep actions were selected at import.',
+        ].join(' '),
       },
     },
     workflow: { kind: 'youtube-album-release', source: 'pam' },

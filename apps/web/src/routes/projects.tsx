@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import {
   Clapperboard,
   Plus,
@@ -10,6 +10,12 @@ import {
   Download,
   Music,
   CircleHelp,
+  AlertTriangle,
+  CheckCircle,
+  Captions,
+  RefreshCw,
+  SlidersHorizontal,
+  WandSparkles,
 } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import {
@@ -33,7 +39,17 @@ import { ClientOnly } from '#/components/client-only'
 import type { Project } from '#/types/editor'
 import { getAllProjects, deleteProject, getProjectMedia } from '#/lib/storage'
 import { exportProjectBundle, importProjectBundle } from '#/lib/project-io'
-import { buildPamAlbumProject, buildPromoProject } from '#/lib/pam-import'
+import {
+  analyzePamAlbumImport,
+  buildPamAlbumProject,
+  buildPromoProject,
+  type PamAlbumBuildOptions,
+  type PamAlbumCaptionStrategy,
+  type PamAlbumExportTarget,
+  type PamAlbumPreflight,
+  type PamAlbumPrepAction,
+  type PamAlbumVisualPreset,
+} from '#/lib/pam-import'
 import { createProject, projectDuration } from '#/stores/editor-store'
 import { formatDuration } from '#/lib/media'
 
@@ -44,6 +60,29 @@ const PRESETS: Record<string, { width: number; height: number; label: string }> 
   vertical: { width: 1080, height: 1920, label: 'Vertical · 9:16' },
   square: { width: 1080, height: 1080, label: 'Square · 1:1' },
 }
+
+type AlbumReviewOptions = Required<Pick<PamAlbumBuildOptions, 'visualPreset' | 'captionStrategy' | 'exportTargets' | 'prepActions'>>
+type AlbumAssetOverrides = NonNullable<PamAlbumBuildOptions['assetOverrides']>
+
+const ALBUM_REVIEW_DEFAULTS: AlbumReviewOptions = {
+  visualPreset: 'album-card',
+  captionStrategy: 'auto',
+  exportTargets: ['youtube-16x9'],
+  prepActions: [],
+}
+
+const EXPORT_TARGETS: { value: PamAlbumExportTarget; label: string }[] = [
+  { value: 'youtube-16x9', label: 'YouTube 16:9' },
+  { value: 'shorts-9x16', label: 'Shorts 9:16' },
+  { value: 'square-1x1', label: 'Square 1:1' },
+]
+
+const PREP_ACTIONS: { value: PamAlbumPrepAction; label: string }[] = [
+  { value: 'enhance', label: 'Enhance quality' },
+  { value: 'denoise', label: 'Reduce noise' },
+  { value: 'stabilize', label: 'Stabilize' },
+  { value: 'optical-flow', label: 'Smooth motion' },
+]
 
 function ProjectsPage() {
   return (
@@ -70,6 +109,10 @@ function ProjectsInner() {
   const [preset, setPreset] = useState('landscape')
   const [creating, setCreating] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [albumReview, setAlbumReview] = useState<PamAlbumPreflight | null>(null)
+  const [albumFiles, setAlbumFiles] = useState<File[]>([])
+  const [albumOptions, setAlbumOptions] = useState<AlbumReviewOptions>(ALBUM_REVIEW_DEFAULTS)
+  const [albumOverrides, setAlbumOverrides] = useState<AlbumAssetOverrides>({})
   const importRef = useRef<HTMLInputElement>(null)
   const pamRef = useRef<HTMLInputElement>(null)
   const pamAlbumRef = useRef<HTMLInputElement>(null)
@@ -102,8 +145,12 @@ function ProjectsInner() {
     if (!files?.length) return
     setImporting(true)
     try {
-      const id = await buildPamAlbumProject(files)
-      navigate({ to: '/editor/$projectId', params: { projectId: id } })
+      const selected = Array.from(files)
+      const review = await analyzePamAlbumImport(selected)
+      setAlbumFiles(selected)
+      setAlbumReview(review)
+      setAlbumOptions(ALBUM_REVIEW_DEFAULTS)
+      setAlbumOverrides({})
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Could not import that Pam album release folder.')
     } finally {
@@ -111,7 +158,36 @@ function ProjectsInner() {
     }
   }
 
-  async function handleExport(id: string, e: React.MouseEvent) {
+  async function handleCreatePamAlbumProject() {
+    if (!albumFiles.length || !albumReview) return
+    setImporting(true)
+    try {
+      const id = await buildPamAlbumProject(albumFiles, {
+        ...albumOptions,
+        assetOverrides: albumOverrides,
+      })
+      setAlbumReview(null)
+      setAlbumFiles([])
+      setAlbumOverrides({})
+      navigate({ to: '/editor/$projectId', params: { projectId: id } })
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not create that Pam album project.')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  function updateAlbumOverride(trackKey: string, kind: 'audioFile' | 'videoFile' | 'lyricsFile', file: File | null) {
+    setAlbumOverrides((current) => {
+      const next = { ...current, [trackKey]: { ...(current[trackKey] ?? {}) } }
+      if (file) next[trackKey][kind] = file
+      else delete next[trackKey][kind]
+      if (!next[trackKey].audioFile && !next[trackKey].videoFile && !next[trackKey].lyricsFile) delete next[trackKey]
+      return next
+    })
+  }
+
+  async function handleExport(id: string, e: MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
     const { blob, name } = await exportProjectBundle(id)
@@ -159,7 +235,7 @@ function ProjectsInner() {
     navigate({ to: '/editor/$projectId', params: { projectId: project.id } })
   }
 
-  async function handleDelete(id: string, e: React.MouseEvent) {
+  async function handleDelete(id: string, e: MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
     if (!confirm('Delete this project? This cannot be undone.')) return
@@ -402,7 +478,249 @@ function ProjectsInner() {
         </DialogContent>
       </Dialog>
 
+      <PamAlbumReviewDialog
+        review={albumReview}
+        options={albumOptions}
+        overrides={albumOverrides}
+        importing={importing}
+        onOptionsChange={setAlbumOptions}
+        onOverrideChange={updateAlbumOverride}
+        onCreate={() => void handleCreatePamAlbumProject()}
+        onOpenChange={(v) => {
+          if (v || importing) return
+          setAlbumReview(null)
+          setAlbumFiles([])
+          setAlbumOverrides({})
+        }}
+      />
+
       <ImportHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
+    </div>
+  )
+}
+
+function toggleListValue<T extends string>(list: T[], value: T): T[] {
+  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
+}
+
+function PamAlbumReviewDialog({
+  review,
+  options,
+  overrides,
+  importing,
+  onOptionsChange,
+  onOverrideChange,
+  onCreate,
+  onOpenChange,
+}: {
+  review: PamAlbumPreflight | null
+  options: AlbumReviewOptions
+  overrides: AlbumAssetOverrides
+  importing: boolean
+  onOptionsChange: (next: AlbumReviewOptions) => void
+  onOverrideChange: (trackKey: string, kind: 'audioFile' | 'videoFile' | 'lyricsFile', file: File | null) => void
+  onCreate: () => void
+  onOpenChange: (v: boolean) => void
+}) {
+  const missingCount = review
+    ? review.totals.missingAudio + review.totals.missingVideo + review.totals.missingLyrics
+    : 0
+
+  return (
+    <Dialog open={!!review} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+        {review && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="font-display text-2xl tracking-wide">Review Pam album import</DialogTitle>
+              <DialogDescription>
+                Preflight the release folder, choose the video treatment, and create one editable YouTube album timeline.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-3 sm:grid-cols-4">
+              <AlbumStat icon={<Music className="size-4" />} label="Tracks" value={String(review.trackCount)} />
+              <AlbumStat icon={<Clock className="size-4" />} label="Runtime" value={formatDuration(review.durationSec)} />
+              <AlbumStat icon={<Captions className="size-4" />} label="Captions" value={String(review.totals.captions)} />
+              <AlbumStat
+                icon={missingCount ? <AlertTriangle className="size-4" /> : <CheckCircle className="size-4" />}
+                label="Issues"
+                value={missingCount ? String(missingCount) : 'Clear'}
+                tone={missingCount ? 'warn' : 'good'}
+              />
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+              <section className="rounded-lg border border-border bg-card/40">
+                <div className="border-b border-border p-3">
+                  <p className="font-display text-lg tracking-wide">{review.albumTitle || review.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {review.artist || 'Unknown artist'} · {review.chapterCount} chapters · {review.packetPath}
+                  </p>
+                </div>
+                <div className="max-h-[420px] divide-y divide-border overflow-y-auto">
+                  {review.tracks.map((track) => {
+                    const override = overrides[track.key]
+                    return (
+                      <div key={track.key} className="grid gap-3 p-3 md:grid-cols-[minmax(0,1fr)_220px]">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate font-medium">{track.trackNo}. {track.title}</p>
+                            <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                              {formatDuration(track.startSec)} · {formatDuration(track.durationSec)}
+                            </span>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            <StatusPill ok={track.audioFound || !!override?.audioFile} label="Audio" />
+                            <StatusPill ok={track.videoFound || !!override?.videoFile} label={track.videoFound || override?.videoFile ? 'Video' : 'Fallback card'} warn={!track.videoFound && !override?.videoFile} />
+                            <StatusPill ok={track.lyricsFound || !!override?.lyricsFile} label={`${track.captionCount} captions`} warn={!track.lyricsFound && track.captionMode !== 'none'} />
+                          </div>
+                        </div>
+                        <div className="grid gap-2 text-xs">
+                          {!track.audioFound && (
+                            <FileRepair label="Replace audio" accept="audio/*,.mp3,.wav,.m4a" onFile={(file) => onOverrideChange(track.key, 'audioFile', file)} />
+                          )}
+                          {!track.videoFound && (
+                            <FileRepair label="Add video" accept="video/*,.mp4,.mov" onFile={(file) => onOverrideChange(track.key, 'videoFile', file)} />
+                          )}
+                          {!track.lyricsFound && track.captionMode !== 'none' && (
+                            <FileRepair label="Add lyrics" accept=".txt,.md,text/plain" onFile={(file) => onOverrideChange(track.key, 'lyricsFile', file)} />
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <div className="rounded-lg border border-border bg-card/40 p-3">
+                  <p className="mb-2 flex items-center gap-2 font-medium"><SlidersHorizontal className="size-4 text-primary" /> Assembly</p>
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label>Visual treatment</Label>
+                      <Select
+                        value={options.visualPreset}
+                        onValueChange={(v) => onOptionsChange({ ...options, visualPreset: (v ?? 'album-card') as PamAlbumVisualPreset })}
+                      >
+                        <SelectTrigger className="w-full"><SelectValue>{(v: string | null) => v || 'album-card'}</SelectValue></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="album-card">Album card</SelectItem>
+                          <SelectItem value="lyric-video">Lyric video</SelectItem>
+                          <SelectItem value="visualizer">Visualizer hero</SelectItem>
+                          <SelectItem value="cinematic">Cinematic fallback</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Caption plan</Label>
+                      <Select
+                        value={options.captionStrategy}
+                        onValueChange={(v) => onOptionsChange({ ...options, captionStrategy: (v ?? 'auto') as PamAlbumCaptionStrategy })}
+                      >
+                        <SelectTrigger className="w-full"><SelectValue>{(v: string | null) => v || 'auto'}</SelectValue></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="auto">Auto from lyrics</SelectItem>
+                          <SelectItem value="lyrics">Lyrics only</SelectItem>
+                          <SelectItem value="titles-only">Track titles only</SelectItem>
+                          <SelectItem value="none">No captions</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <CheckboxPanel
+                  icon={<Clapperboard className="size-4 text-primary" />}
+                  title="Export targets"
+                  items={EXPORT_TARGETS}
+                  selected={options.exportTargets}
+                  onToggle={(value) => onOptionsChange({ ...options, exportTargets: toggleListValue(options.exportTargets, value) })}
+                />
+
+                <CheckboxPanel
+                  icon={<WandSparkles className="size-4 text-primary" />}
+                  title="Enhance queue"
+                  items={PREP_ACTIONS}
+                  selected={options.prepActions}
+                  onToggle={(value) => onOptionsChange({ ...options, prepActions: toggleListValue(options.prepActions, value) })}
+                />
+              </section>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={importing}>
+                Cancel
+              </Button>
+              <Button onClick={onCreate} disabled={importing || options.exportTargets.length === 0}>
+                {importing ? <RefreshCw className="size-4 animate-spin" /> : <CheckCircle className="size-4" />}
+                {importing ? 'Creating…' : 'Create album timeline'}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function AlbumStat({ icon, label, value, tone }: { icon: ReactNode; label: string; value: string; tone?: 'good' | 'warn' }) {
+  return (
+    <div className="rounded-lg border border-border bg-card/40 p-3">
+      <div className={tone === 'good' ? 'text-emerald-400' : tone === 'warn' ? 'text-amber-300' : 'text-primary'}>{icon}</div>
+      <p className="mt-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+      <p className="font-display text-xl tracking-wide">{value}</p>
+    </div>
+  )
+}
+
+function StatusPill({ ok, warn, label }: { ok: boolean; warn?: boolean; label: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] ${ok ? 'bg-emerald-500/10 text-emerald-300' : warn ? 'bg-amber-500/10 text-amber-300' : 'bg-secondary text-muted-foreground'}`}>
+      {ok ? <CheckCircle className="size-3" /> : warn ? <AlertTriangle className="size-3" /> : null}
+      {label}
+    </span>
+  )
+}
+
+function FileRepair({ label, accept, onFile }: { label: string; accept: string; onFile: (file: File | null) => void }) {
+  return (
+    <label className="grid gap-1 text-muted-foreground">
+      <span>{label}</span>
+      <Input type="file" accept={accept} onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
+    </label>
+  )
+}
+
+function CheckboxPanel<T extends string>({
+  icon,
+  title,
+  items,
+  selected,
+  onToggle,
+}: {
+  icon: ReactNode
+  title: string
+  items: { value: T; label: string }[]
+  selected: T[]
+  onToggle: (value: T) => void
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card/40 p-3">
+      <p className="mb-2 flex items-center gap-2 font-medium">{icon} {title}</p>
+      <div className="grid gap-2">
+        {items.map((item) => (
+          <label key={item.value} className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={selected.includes(item.value)}
+              onChange={() => onToggle(item.value)}
+              className="size-3.5 rounded border-border accent-primary"
+            />
+            <span>{item.label}</span>
+          </label>
+        ))}
+      </div>
     </div>
   )
 }

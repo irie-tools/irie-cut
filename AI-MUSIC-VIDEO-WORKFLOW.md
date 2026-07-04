@@ -32,7 +32,9 @@ The source says "CapCut" for the assembly step. In Irie Cut terms that maps to:
 - The template sets a 1920x1080 canvas, dark background, sound-bar visualizer defaults, and starter title text.
 - Added `project.workflow.kind = "youtube-music-video"` so readiness can be context-aware without changing every project.
 - Added Pam YouTube Album Release import support for `iriePromo: 2`, `kind: "youtube_album_release"` folders.
-- Album imports place track audio in order, use existing track videos when present, create album-card fallback visuals, add lyrics captions from lyrics files, and create timeline markers from chapters.
+- Album imports now stop at a review/preflight screen before project creation. The review shows track order, duration, found/missing audio, found/missing videos, lyrics/caption counts, chapter coverage, and lets the user attach replacement files for missing assets.
+- The review captures visual treatment, caption strategy, export targets, and enhance/prep intent. Prep actions are recorded honestly as project notes today; they are hooks for future real enhance/denoise/stabilize/optical-flow processing, not fake processing.
+- Final album assembly places track audio in order, uses existing or replacement track videos when present, creates fallback visuals, adds lyrics captions from lyrics files, and creates timeline markers from chapters.
 - Added workflow-specific score checks in `apps/web/src/lib/score.ts`:
   - 16:9 HD music-video format
   - continuous music bed coverage
@@ -49,6 +51,7 @@ The source says "CapCut" for the assembly step. In Irie Cut terms that maps to:
 
 ## Next product slices
 
-- Add a Music Pack assembler that places N audio tracks sequentially, repeats M loop clips across the runtime, and creates markers at each track start.
-- Add a metadata export for YouTube title, description, tags, and chapters.
+- Add a YouTube metadata/post-kit export for title, description, tags, thumbnail prompt text, chapters, and upload checklist.
+- Add real prep processors behind the captured enhance queue: browser-safe denoise/enhance first, then optional server/VPS jobs for stabilize and optical-flow.
 - Add loop-seam review support so a user can verify the first/last frame before batching clips.
+- Add a caption timing editor that lets imported lyric lines be nudged before export without digging through timeline clips.

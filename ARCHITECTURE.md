@@ -153,7 +153,7 @@ sequenceDiagram
 | `beats.ts` | Story-beat roles + `buildEdl()` / `buildCutdown()` / `beatSummary()`. |
 | `score.ts` | `scoreProject()` — creative score + deterministic export-readiness checks, including workflow-aware YouTube music-video checks. |
 | `templates.ts` | Format templates (ratio + starter layout specs, plus optional workflow/project defaults). |
-| `pam-import.ts` | Pam/Video Studio handoff importers: `iriePromo: 1` single promo bundles and `iriePromo: 2` Pam YouTube Album Release folders. |
+| `pam-import.ts` | Pam/Video Studio handoff importers: `iriePromo: 1` single promo bundles plus `iriePromo: 2` Pam YouTube Album Release preflight/build logic, including folder-relative media resolution, caption generation, visual preset intent, export targets and prep intent. |
 | `ai.ts` | Client wrappers for the `/api/ai-*` endpoints. |
 | `utils.ts` | `cn()` class helper. |
 
@@ -185,7 +185,7 @@ shadcn / base-ui primitives (button, dialog, slider, select, tabs, …). Generat
 | --- | --- |
 | `__root.tsx` | Root layout + providers (TooltipProvider, Outlet). |
 | `index.tsx` | Marketing landing page. |
-| `projects.tsx` | Project list / create / delete (IndexedDB). |
+| `projects.tsx` | Project list / create / delete (IndexedDB), project bundle imports, Pam single-song imports, and the Pam Album import review screen for preflight, missing-asset repair, assembly choices and final project creation. |
 | `editor.$projectId.tsx` | Editor route; wraps `<Editor>` in `ClientOnly`. |
 | `routeTree.gen.ts` | **Generated** by the TanStack Router plugin — do not edit. |
 
@@ -207,7 +207,7 @@ shadcn / base-ui primitives (button, dialog, slider, select, tabs, …). Generat
 - `AI-MUSIC-VIDEO-WORKFLOW.md` records the 2026-07-03 extraction from the faceless YouTube music-video markdown set under `/Users/irieagent/Documents/irie-tools/grabs/The_Best_AI_Side_Hustle_Ideas_NO_ONE_Is_Talking_About/knowledge`.
 - `VPS-MIGRATION-ASSESSMENT.md` records the 2026-07-03 research pass for moving Irie Cut from Vercel into the VPS/Cloudflare Media House lane.
 - Source boundary: extract workflow patterns only. Do not vendor Remotion, MCP configs, hook scripts, or external-service dependencies into the editor core.
-- Implemented pulls: auto-captions preserve Whisper word timings via `caption-words.ts`; `scoreProject()` includes deterministic export-readiness checks that surface in the score dialog and export modal; the YouTube Music Video template marks projects with `workflow.kind = "youtube-music-video"` for workflow-specific checks.
+- Implemented pulls: auto-captions preserve Whisper word timings via `caption-words.ts`; `scoreProject()` includes deterministic export-readiness checks that surface in the score dialog and export modal; the YouTube Music Video template marks projects with `workflow.kind = "youtube-music-video"` for workflow-specific checks; Pam Album import now includes preflight, missing-asset repair, assembly options, export target selection, and honest enhance/prep intent before building the album timeline.
 
 ## Invariants worth keeping
 - **Preview == export:** route any new pixel/audio behavior through `renderer.ts` / `audio.ts` so both stay in sync.
