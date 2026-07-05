@@ -155,7 +155,7 @@ describe('scoreProject export readiness', () => {
     expect(check(p, 'yt-music-chapters').status).toBe('bad')
   })
 
-  it('counts generated album-card shapes as visual coverage for Pam album imports', () => {
+  it('counts generated album-card shapes as visual coverage for album-release workflows', () => {
     const p = project(
       [
         track('v', 'video', [
@@ -170,7 +170,7 @@ describe('scoreProject export readiness', () => {
         track('a', 'audio', [clip({ trackId: 'a', type: 'audio', start: 0, duration: 180, fadeOut: 2 })]),
       ],
       {
-        workflow: { kind: 'youtube-album-release', source: 'pam' },
+        workflow: { kind: 'youtube-album-release', source: 'template' },
         markers: [
           { id: 'm1', time: 0, label: 'Track 1' },
           { id: 'm2', time: 60, label: 'Track 2' },

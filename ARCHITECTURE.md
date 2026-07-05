@@ -4,8 +4,8 @@ A navigation map for humans and AI agents. It shows **how the pieces connect**, 
 **core data flows**, and **what every file does**. If you're about to change something,
 find it here first.
 
-- **Stack:** React 19 · TanStack Router (file-based) · zustand · Tailwind v4 · Vite 8 · Canvas 2D · Web Audio · Vercel Functions
-- **Shape:** a pure client-side SPA (`apps/web`) + optional dependency-free AI functions (`/api`). No backend for the editor.
+- **Stack:** React 19 · TanStack Router (file-based) · zustand · Tailwind v4 · Vite 8 · Canvas 2D · Web Audio
+- **Shape:** a pure client-side SPA (`apps/web`). No backend, no network calls, at all.
 - **One rule to remember:** the **canvas renderer (`lib/renderer.ts`) is shared by the live preview and the exporter**, so anything you draw shows up in both. Same for **audio gain (`lib/audio.ts`)**.
 
 ---
@@ -27,7 +27,6 @@ graph TD
   ED --> TL[timeline.tsx]
   ED --> EXP[export-dialog.tsx]
   ED --> SC[score-dialog.tsx]
-  MP --> AIP[ai-panel.tsx]
 
   subgraph Store
     ST[stores/editor-store.ts<br/>single source of truth + undo/redo]
@@ -56,9 +55,6 @@ graph TD
   SC --> SCR[lib/score.ts]
   TL --> WFH[hooks/use-waveform.ts] --> WAV[lib/waveform.ts]
   PV --> PBK[hooks/use-playback.ts]
-
-  AIP --> AIC[lib/ai.ts] --> API{{/api/ai-*}}
-  API --> PROV[(Anthropic / OpenAI / AI Gateway)]
 ```
 
 ---
@@ -102,11 +98,6 @@ sequenceDiagram
 - A `coalesceKey` collapses rapid mutations (drag/slider/typing) into a single undo step.
 - `undo()` / `redo()` swap snapshots between `past` ⇄ `project` ⇄ `future`.
 
-### 4) AI
-- `ai-panel.tsx` → `lib/ai.ts` → `POST /api/ai-*` → provider → result mapped back into the store
-  (`addTextClip`, `importFiles`+`addClipFromMedia`, or `addCaptions`).
-- Functions are dependency-free (`fetch` only) and fall back across providers; they return a friendly 503 when unconfigured.
-
 ---
 
 ## Annotated file map
@@ -114,16 +105,7 @@ sequenceDiagram
 ### Root
 | Path | Role |
 | --- | --- |
-| `vercel.json` | **Deploy brain.** Builds `apps/web`, sets output dir, SPA rewrite (excludes `/api`), enables `/api` functions. Used by git auto-deploy. |
-| `apps/web/vercel.json` | Config for one-off CLI deploys from inside `apps/web`. |
 | `bunfig.toml`, `.prototools`, `.moon/` | Toolchain pinning (bun/moon via proto). |
-
-### `/api` — serverless AI (dependency-free, `fetch` only)
-| File | Role |
-| --- | --- |
-| `ai-copy.ts` | Marketing copy. Tries **Anthropic direct → AI Gateway → OpenAI**; returns `{ variants, model }`. |
-| `ai-image.ts` | Image generation via OpenAI `gpt-image-1`; returns a `{ dataUrl }`. |
-| `ai-transcribe.ts` | Audio (base64) → OpenAI Whisper → `{ cues: [{start,end,text}] }`. |
 
 ### `apps/web/src/types`
 | File | Role |
@@ -148,13 +130,20 @@ sequenceDiagram
 | `media.ts` | Probe uploaded files (duration/dimensions), generate thumbnails, time formatting. |
 | `waveform.ts` | Decode audio → cached normalized peak buckets. |
 | `captions.ts` | Build `.srt` / `.vtt` from text clips. |
-| `caption-words.ts` | Attach Whisper word timings to caption cues as clip-local karaoke words. |
+| `caption-words.ts` | Attach word-level timing to caption cues as clip-local karaoke words. |
 | `caption-styles.ts` | Reusable caption track style presets. |
 | `beats.ts` | Story-beat roles + `buildEdl()` / `buildCutdown()` / `beatSummary()`. |
 | `score.ts` | `scoreProject()` — creative score + deterministic export-readiness checks, including workflow-aware YouTube music-video checks. |
 | `templates.ts` | Format templates (ratio + starter layout specs, plus optional workflow/project defaults). |
-| `pam-import.ts` | Pam/Video Studio handoff importers: `iriePromo: 1` single promo bundles plus `iriePromo: 2` Pam YouTube Album Release preflight/build logic, including folder-relative media resolution, LRC-first caption generation, Pam v2.1 hints, Music Video Formula Packs, visual bible notes, section/shorts hints, visual preset intent, export targets and prep intent. |
-| `ai.ts` | Client wrappers for the `/api/ai-*` endpoints. |
+| `beat-cut.ts` | Beat-cut planner: given detected beat times and a set of media sources, decides cut points and builds the resulting clips. Pure, deterministic, media-agnostic. |
+| `beat-detect.ts` | Energy-novelty beat detection from decoded audio. |
+| `motion.ts` | Ken-Burns motion presets applied as keyframes. |
+| `chroma.ts` | WebGL chroma key (green screen) pass. |
+| `blend.ts` | Blend-mode compositing. |
+| `mask.ts` | Reveal masks (rect/ellipse/linear, feather, invert). |
+| `keyframes.ts` | Linear-interpolation keyframe animation on clip transform properties. |
+| `exporter-webcodecs.ts` | Frame-accurate export via `VideoEncoder`/`AudioEncoder` + mp4 muxing. |
+| `brand-kit.ts` | A small localStorage-backed brand palette + font, applied to text in one click. |
 | `utils.ts` | `cn()` class helper. |
 
 ### `apps/web/src/hooks`
@@ -168,8 +157,7 @@ sequenceDiagram
 | File | Role |
 | --- | --- |
 | `editor.tsx` | **Shell.** Loads the project, mounts playback, global keyboard shortcuts (space, S split, M marker, ⌘Z undo/redo, arrows), lays out the resizable panels, header (undo/redo, score, export). |
-| `media-panel.tsx` | Left panel tabs: Media (import + assets), Text, Templates, AI. |
-| `ai-panel.tsx` | AI tab UI: copy assist, image gen, auto-captions with optional word timing. |
+| `media-panel.tsx` | Left panel tabs: Media (import + assets), Text, Stickers, Layouts. |
 | `preview-panel.tsx` | Center canvas + transport + master volume; owns the render/sync loop and hidden media elements. |
 | `properties-panel.tsx` | Right panel: selected-clip props (timing, role, volume, speed, filter, transform, transitions, text) or project settings. |
 | `timeline.tsx` | The timeline: toolbar, ruler + markers, track-header gutter (mute/solo/lock/volume/reorder), clips (drag/trim/snap, filmstrip thumbnails, waveforms, role badges). |
@@ -185,7 +173,7 @@ shadcn / base-ui primitives (button, dialog, slider, select, tabs, …). Generat
 | --- | --- |
 | `__root.tsx` | Root layout + providers (TooltipProvider, Outlet). |
 | `index.tsx` | Marketing landing page. |
-| `projects.tsx` | Project list / create / delete (IndexedDB), project bundle imports, Pam single-song imports, and the Pam Album import review screen for preflight, missing-asset repair, assembly choices and final project creation. |
+| `projects.tsx` | Project list / create / delete (IndexedDB) and project bundle import/export. |
 | `editor.$projectId.tsx` | Editor route; wraps `<Editor>` in `ClientOnly`. |
 | `routeTree.gen.ts` | **Generated** by the TanStack Router plugin — do not edit. |
 
@@ -199,18 +187,9 @@ shadcn / base-ui primitives (button, dialog, slider, select, tabs, …). Generat
 | Add a visual effect | `filters.ts` or `transitions.ts` → it renders in preview + export automatically (shared renderer) |
 | Add a timeline tool | `timeline.tsx` (toolbar/clip interaction) + a store action |
 | Add an export/producer artifact | a `lib/*.ts` builder + a button in `export-dialog.tsx` |
-| Add an AI capability | a function in `/api` + a wrapper in `lib/ai.ts` + UI in `ai-panel.tsx` |
 | Change scoring | `lib/score.ts` (`scoreProject`) |
-
-## Research imports
-- `REMOTION-SUPERPOWERS-EXTRACTION.md` records the 2026-06-28 read-only research pass over `/Users/irieagent/Documents/repo-research/remotion-superpowers`.
-- `AI-MUSIC-VIDEO-WORKFLOW.md` records the 2026-07-03 extraction from the faceless YouTube music-video markdown set under `/Users/irieagent/Documents/irie-tools/grabs/The_Best_AI_Side_Hustle_Ideas_NO_ONE_Is_Talking_About/knowledge`.
-- `VPS-MIGRATION-ASSESSMENT.md` records the 2026-07-03 research pass for moving Irie Cut from Vercel into the VPS/Cloudflare Media House lane.
-- Source boundary: extract workflow patterns only. Do not vendor Remotion, MCP configs, hook scripts, or external-service dependencies into the editor core.
-- Implemented pulls: auto-captions preserve Whisper word timings via `caption-words.ts`; `scoreProject()` includes deterministic export-readiness checks that surface in the score dialog and export modal; the YouTube Music Video template marks projects with `workflow.kind = "youtube-music-video"` for workflow-specific checks; Pam Album import now includes preflight, missing-asset repair, Pam v2.1 hint consumption, Music Video Formula Packs, assembly options, export target selection, and honest enhance/prep intent before building the album timeline.
 
 ## Invariants worth keeping
 - **Preview == export:** route any new pixel/audio behavior through `renderer.ts` / `audio.ts` so both stay in sync.
 - **All edits go through `mutate()`** so undo/redo and persistence keep working; pass a `coalesceKey` for high-frequency updates.
-- **Client-only:** the editor must run with no network. Keep browser-only APIs out of SSR (editor routes are wrapped in `ClientOnly`) and keep the core free of server calls (AI is the only exception, and it's optional).
-- **`/api` functions stay dependency-free** (plain `fetch`) so they need no build step or root `package.json`.
+- **Client-only, zero network:** the editor must run with no network calls at all. Keep browser-only APIs out of SSR (editor routes are wrapped in `ClientOnly`).

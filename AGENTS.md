@@ -9,16 +9,14 @@ designed and ready to build first). This file is the 30-second version.
 focused — NOT an all-in-one media hub. Depth over breadth, real over promised.
 
 ## What this is
-**Irie Cut** — a free, client-side, in-browser video/media editor + studio. Pure SPA
-(`apps/web`, React 19 + Vite + zustand) with optional dependency-free AI functions in `/api`.
-No backend for the editor. Deployed on Vercel (git push to `main` auto-deploys).
+**Irie Cut** — a free, client-side, in-browser video editor. Pure SPA
+(`apps/web`, React 19 + Vite + zustand). No backend, no network calls, at all.
 
 ## Where things live
 - Data model: `apps/web/src/types/editor.ts`
 - State + all mutations + undo/redo + persistence: `apps/web/src/stores/editor-store.ts`
-- Pure logic: `apps/web/src/lib/*` (renderer, exporter, audio, filters, transitions, captions, beats, score, templates, storage, media, waveform, ai)
+- Pure logic: `apps/web/src/lib/*` (renderer, exporter, audio, filters, transitions, captions, beats, score, templates, storage, media, waveform)
 - UI: `apps/web/src/components/editor/*`
-- AI serverless: `/api/ai-*.ts`
 
 ## Hard rules (don't break these)
 1. **The canvas renderer (`lib/renderer.ts`) and audio math (`lib/audio.ts`) are shared by
@@ -26,11 +24,9 @@ No backend for the editor. Deployed on Vercel (git push to `main` auto-deploys).
    export match. Don't fork the logic.
 2. **Every project edit goes through `mutate()` in the store** (keeps undo/redo + IndexedDB
    persistence working). For high-frequency updates (drags, sliders, typing) pass a `coalesceKey`.
-3. **Client-only.** The editor must work with zero network. Keep browser APIs out of SSR
-   (editor routes are wrapped in `ClientOnly`). AI is the only network call and is optional.
-4. **`/api` functions stay dependency-free** (plain `fetch`, no imports needed) — there is no
-   root `package.json` for them to resolve against.
-5. **Don't edit generated files:** `apps/web/src/routeTree.gen.ts`.
+3. **Client-only, zero network.** The editor must work with no network calls at all. Keep
+   browser APIs out of SSR (editor routes are wrapped in `ClientOnly`).
+4. **Don't edit generated files:** `apps/web/src/routeTree.gen.ts`.
 
 ## Workflow conventions (what's worked here)
 - Build features in **small, verified, separately-committed** slices. Don't batch a dozen
@@ -49,7 +45,7 @@ No backend for the editor. Deployed on Vercel (git push to `main` auto-deploys).
 ```sh
 cd apps/web && bun install && bun run dev     # http://localhost:5173
 cd apps/web && bun run build                  # static output in apps/web/dist
-# deploy: push to main (Vercel auto-deploys). AI runs only on Vercel or `vercel dev`.
+# deploy: host apps/web/dist anywhere that serves static files.
 ```
 
 ## Add-a-feature cheat sheet

@@ -34,9 +34,8 @@ bells and whistles" a creator expects from modern editors.
 2. **Shared seams stay shared.** `lib/renderer.ts` and `lib/audio.ts` are used by BOTH the live
    preview and the exporter. Any new pixel/audio behavior goes there so preview == export.
 3. **All edits go through `mutate()`** in the store (undo/redo + persistence). Coalesce high-freq edits.
-4. **Client-only core.** The editor must work with zero network. AI (`/api`) is the only network call,
-   optional, dependency-free.
-5. **Ship in small slices**, commit each, push (auto-deploys to https://irie-cut.vercel.app).
+4. **Client-only core.** The editor must work with zero network calls, no exceptions.
+5. **Ship in small slices**, committing and verifying each one.
 
 ---
 
@@ -45,9 +44,8 @@ bells and whistles" a creator expects from modern editors.
 Editor core (projects, media import, multi-track timeline, canvas preview, real MP4 export),
 transitions, audio mixing (track gain/mute/solo/master/fades), real creative scorecard, deep
 timeline (snapping, per-clip transform + speed, ripple delete, markers, track headers, clip
-thumbnails + audio waveforms), undo/redo, AI (copy via Claude, image via gpt-image-1, captions via
-Whisper), and a pro-neutral visual pass (cool charcoal + cyan, logo, surface separation, empty
-states). Full per-file map in [ARCHITECTURE.md](ARCHITECTURE.md).
+thumbnails + audio waveforms), undo/redo, and a pro-neutral visual pass (cool charcoal + cyan,
+logo, surface separation, empty states). Full per-file map in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 Known gaps / candidates already noted: animated hover-scrub thumbnails; drag-to-retime markers;
 easing curves; faster export.
@@ -212,11 +210,10 @@ transitions** (spin/glitch/zoom-blur/vertical wipes), and **auto-reframe** betwe
 design pass (real-over-promised): subject/face-tracked reframe, 3D-LUT/WebGPU effect graph, motion
 tracking, stabilization, AI voice-cleanup/music, transcript-based editing.
 
-**Research extraction update (2026-06-28):** pulled one practical idea from the read-only
-`remotion-superpowers` research repo without adopting its Remotion/MCP stack. Auto-captions now keep
-Whisper word timings and attach them to text clips for word-by-word highlight in preview and export.
+**Update (2026-06-28):** captions can carry word-level timing and attach it to text clips for
+word-by-word highlight in preview and export (`caption-words.ts`).
 Follow-up (2026-06-30): added deterministic Export Readiness checks to `scoreProject()` and surfaced
-the top issues in the export modal. See `REMOTION-SUPERPOWERS-EXTRACTION.md`.
+the top issues in the export modal.
 
 </details>
 <details><summary>Original design</summary>

@@ -335,9 +335,7 @@ export function ExportButton() {
                   <Megaphone className="size-4 text-primary" /> Post kit
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {project?.promo?.campaign
-                    ? 'Caption + hashtags from your Pam campaign, plus a poster of the current frame.'
-                    : 'A ready-to-post caption + hashtags, plus a poster of the current frame.'}
+                  A ready-to-post caption + hashtags, plus a poster of the current frame.
                 </p>
                 <div className="mt-3 flex gap-2">
                   <Button size="sm" variant="outline" onClick={saveCaption}>

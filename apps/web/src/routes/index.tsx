@@ -3,14 +3,12 @@ import { Button } from '#/components/ui/button'
 import { Logo } from '#/components/logo'
 import {
   Music,
-  Film,
   Sparkles,
-  Share2,
   Scissors,
   Layers,
   Type,
   Download,
-  Captions,
+  Wand2,
   ShieldCheck,
   Code,
   Heart,
@@ -24,7 +22,6 @@ function Home() {
       <SiteHeader />
       <main>
         <Hero />
-        <Pipeline />
         <BeatCut />
         <RealEditor />
         <Trust />
@@ -82,20 +79,19 @@ function Hero() {
           <div>
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/[0.07] px-3 py-1 text-xs text-muted-foreground">
               <Sparkles className="size-3.5 text-primary" />
-              Part of the Irie ecosystem · free · on-device
+              Free · open source · on-device
             </div>
             <Display className="text-6xl sm:text-7xl">
-              Your song.
+              Your footage.
               <br />
-              Your visuals.
+              Your machine.
               <br />
               <span className="energy-text">Cut to the beat.</span>
             </Display>
             <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-              Irie Cut is the cutting room of your Irie studio. Bring cover art from{' '}
-              <span className="text-foreground">Pam</span> or clips from{' '}
-              <span className="text-foreground">Video Studio</span>, drop in the track, and it lays
-              them to the beat — captioned and sized for every platform. All on your machine.
+              A real in-browser video editor — multi-track timeline, effects, captions, and a
+              beat-cutter that lays your clips to the music automatically. No account, nothing
+              uploaded, every frame rendered right here on your machine.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Button
@@ -107,7 +103,7 @@ function Hero() {
                 Start cutting
               </Button>
               <a
-                href="#pipeline"
+                href="#beat-cut"
                 className="text-center text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
               >
                 See how it works
@@ -148,78 +144,29 @@ function EditorReel() {
         </video>
       </div>
       <div className="flex items-center gap-2 px-1 pt-2 text-[11px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1 rounded-full bg-secondary/70 px-2 py-0.5">
-          <Music className="size-3 text-primary" /> from Pam
-        </span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-secondary/70 px-2 py-0.5">
-          <Film className="size-3 text-primary" /> from Video Studio
-        </span>
         <span className="ml-auto">the real editor, cutting to the beat</span>
       </div>
     </div>
   )
 }
 
-const PIPELINE = [
-  {
-    icon: Music,
-    title: 'Made upstream',
-    body: 'Pam writes the song and the cover art. Video Studio makes the cinematic clips. Both hand off to Irie Cut in a single file — no re-uploading, no re-exporting.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Cut to the beat here',
-    body: 'Open the handoff and your covers and clips land on the beat automatically — Ken-Burns motion on the stills, burned-in captions, the whole promo assembled and ready to trim.',
-  },
-  {
-    icon: Share2,
-    title: 'Out to every platform',
-    body: 'Export 9:16, 1:1, 16:9 and 4:5 in one pass. Clean files, no watermark, no account — ready to post the day the single drops.',
-  },
-]
-
-function Pipeline() {
-  return (
-    <section id="pipeline" className="scroll-mt-6 border-t border-border bg-card/20">
-      <div className="mx-auto max-w-6xl px-6 py-20">
-        <Eyebrow>The release pipeline</Eyebrow>
-        <Display className="mt-2 text-4xl sm:text-5xl">From a finished song to a posted promo.</Display>
-        <p className="mt-3 max-w-2xl text-muted-foreground">
-          Irie Cut is the back half of the release. The making happens upstream in your studio; the
-          cutting and finishing happen here — and nothing ever leaves your machine.
-        </p>
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {PIPELINE.map((s, i) => (
-            <div key={s.title} className="relative rounded-xl border border-border bg-card p-6">
-              <span className="font-display absolute right-5 top-4 text-4xl text-primary/25">{i + 1}</span>
-              <s.icon className="mb-4 size-7 text-primary" />
-              <h3 className="font-display text-2xl tracking-wide">{s.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{s.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function BeatCut() {
   return (
-    <section className="mx-auto max-w-6xl px-6 py-20">
+    <section id="beat-cut" className="mx-auto max-w-6xl scroll-mt-6 px-6 py-20">
       <div className="grid items-center gap-12 lg:grid-cols-2">
         <div>
           <Eyebrow>The beat-cut</Eyebrow>
-          <Display className="mt-2 text-4xl sm:text-5xl">Cover variations and clips, cut to the music.</Display>
+          <Display className="mt-2 text-4xl sm:text-5xl">Clips and stills, cut to the music.</Display>
           <p className="mt-4 text-muted-foreground">
-            Send three cover variations and a song and Irie Cut flips between them on the beat —
-            never a static frame, never a 15-second loop on repeat. Bring motion clips from Video
-            Studio and the same cutter lays those to the beat too.
+            Drop a few images or clips and a song on the timeline, and Irie Cut cuts between them on
+            the beat — never a static frame, never a loop stretched thin. Pick the cadence and it
+            re-cuts in one click.
           </p>
           <ul className="mt-6 space-y-3">
             {[
               { icon: Sparkles, t: 'Lands every cut on the beat', d: 'Pick the cadence — every beat, every two, every four — and re-cut in one click.' },
-              { icon: Captions, t: 'Captions and motion, already on', d: 'Synced lyric captions and a slow Ken-Burns push come baked into the import.' },
-              { icon: Download, t: 'Every platform size at once', d: 'One timeline exports Reels, feed, YouTube and portrait — no re-framing by hand.' },
+              { icon: Wand2, t: 'Motion on the stills', d: 'A slow Ken-Burns push keeps images alive instead of sitting flat on screen.' },
+              { icon: Download, t: 'Every platform size at once', d: 'Auto-reframe to 9:16, 1:1, 16:9 and 4:5 — no re-editing by hand.' },
             ].map((f) => (
               <li key={f.t} className="flex gap-3">
                 <f.icon className="mt-0.5 size-5 shrink-0 text-primary" />
@@ -258,7 +205,7 @@ function BeatCut() {
                 />
               ))}
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">covers and clips landing on every beat — reads as intentional.</p>
+            <p className="mt-1 text-xs text-muted-foreground">clips landing on every beat — reads as intentional.</p>
           </div>
         </div>
       </div>
@@ -301,7 +248,7 @@ function Trust() {
   const items = [
     { icon: ShieldCheck, t: 'Your media never leaves your device', d: 'Files are stored locally and every frame is rendered on-device. There is no server to upload to — by design.' },
     { icon: Sparkles, t: 'No account, no watermark', d: 'Open the editor and start. Exports come out clean — no badge stamped across your work, no sign-up wall.' },
-    { icon: Music, t: 'Wired to your studio', d: 'One-click handoffs from Pam and Video Studio bring your covers, clips and songs straight in.' },
+    { icon: Code, t: 'Open source, MIT licensed', d: 'Read the code, self-host it, or build on it — the whole editor is on GitHub.' },
   ]
   return (
     <section className="border-t border-border">
@@ -351,17 +298,17 @@ function SiteFooter() {
           <div className="lg:col-span-1">
             <Brand />
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
-              The cutting room of the Irie ecosystem — where your song and visuals become a video
-              that cuts to the beat.
+              A free, open, in-browser video editor — cut, layer, and export, entirely on your
+              machine.
             </p>
           </div>
 
           <div>
-            <p className="font-display text-sm uppercase tracking-[0.2em] text-primary">The pipeline</p>
+            <p className="font-display text-sm uppercase tracking-[0.2em] text-primary">The editor</p>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2"><Music className="size-4 text-primary" /> Made in Pam</li>
-              <li className="flex items-center gap-2"><Film className="size-4 text-primary" /> Made in Video Studio</li>
-              <li className="flex items-center gap-2"><Scissors className="size-4 text-primary" /> Cut &amp; finished here</li>
+              <li className="flex items-center gap-2"><Layers className="size-4 text-primary" /> Multi-track timeline</li>
+              <li className="flex items-center gap-2"><Music className="size-4 text-primary" /> Beat-cut &amp; audio mixing</li>
+              <li className="flex items-center gap-2"><Scissors className="size-4 text-primary" /> Precise, on-device cutting</li>
             </ul>
           </div>
 
@@ -369,12 +316,12 @@ function SiteFooter() {
             <p className="font-display text-sm uppercase tracking-[0.2em] text-primary">Open source</p>
             <ul className="mt-4 space-y-2 text-sm">
               <li>
-                <a href="https://github.com/corey470/irie-cut" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
+                <a href="https://github.com/irie-tools/irie-cut" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
                   <Code className="size-4" /> Source on GitHub
                 </a>
               </li>
               <li>
-                <a href="https://github.com/corey470/irie-cut/issues" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
+                <a href="https://github.com/irie-tools/irie-cut/issues" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
                   <Sparkles className="size-4" /> Report an issue
                 </a>
               </li>
@@ -394,7 +341,7 @@ function SiteFooter() {
 
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row">
           <span className="inline-flex items-center gap-1.5">
-            Built in the browser with <Heart className="size-3.5 text-primary" /> for the Irie ecosystem.
+            Built in the browser with <Heart className="size-3.5 text-primary" />, free and open.
           </span>
           <span>Your media stays on your machine.</span>
         </div>

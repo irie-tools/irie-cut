@@ -193,23 +193,10 @@ export interface Project {
     /** Vertical centre, 0..1 of the frame. Default 0.9 (near the bottom). */
     y?: number
   }
-  /** Promo provenance when this project was started from a Pam song (see lib/pam-import). */
-  promo?: {
-    source: 'pam' | 'studio'
-    title: string
-    artist?: string
-    campaign?: {
-      hook?: string
-      audience?: string
-      captionDraft?: string
-      teaserIdeas?: string[]
-      rolloutNotes?: string
-    } | null
-  }
   /** Workflow intent set by starter templates so readiness checks can be context-aware. */
   workflow?: {
     kind: 'youtube-music-video' | 'youtube-album-release'
-    source: 'template' | 'pam'
+    source: 'template'
   }
   tracks: Track[]
 }

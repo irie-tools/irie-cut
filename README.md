@@ -1,50 +1,26 @@
 # Irie Cut
 
-**The cutting room of the Irie ecosystem.** A free, open, in-browser video editor that
-takes the work made upstream — cover art from **Pam**, cinematic clips from **Video
-Studio** — and cuts it to the beat: a music-locked promo, captioned and sized for every
-platform. Import clips, cut and layer them on a multi-track timeline, grade them, add
-titles and captions, score the cut, and export an MP4 — no account, no watermark, nothing
-uploaded. Your media lives in the browser (IndexedDB) and every frame is rendered
-on-device.
+[![CI](https://github.com/irie-tools/irie-cut/actions/workflows/ci.yml/badge.svg)](https://github.com/irie-tools/irie-cut/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+**A free, open, in-browser video editor.** Import clips, cut and layer them on a
+multi-track timeline, grade them, add titles and captions, cut to the beat of a song,
+score the cut, and export an MP4 — no account, no watermark, nothing uploaded. Your
+media lives in the browser (IndexedDB) and every frame is rendered on-device. Zero
+network calls, period.
 
 <img width="1687" height="787" alt="Irie Cut's multi-track editor open on a real project — captions, visuals and song tracks on the timeline, sound-bar visualizer settings on the right" src="https://github.com/user-attachments/assets/05e002a2-31af-4dcf-a1a2-b824b1e9411d" />
 
 *The real editor, mid-project — multi-track timeline, sound-bar visualizer, everything rendered on-device.*
 
-## Consolidation ruling (2026-07-02)
-
-**Ruling 1 — Irie Cut is THE editor of the ecosystem.** It owns timelines, cutting, captions,
-and export. Irie Media Studio is the producer/packager (asset library, brand kit, briefs, media
-packages) and its timeline work is frozen — no editor features get built there. Anything that
-needs cutting comes here. Full rulings: `~/Documents/Ecosystem audit/rulings-2026-07-02.md`.
-
-It belongs to the **Irie ecosystem** but carries its own music-forward voice: a warm
-near-black canvas, the Irie **red / gold / green** energy palette (a single **Irie-green
-`#25c281`** accent flowing through the app, off the old forked cyan), **Bebas Neue** marquee
-display + **Space Grotesk** body, and a landing hero that's *alive* — equalizer, sweeping
-playhead, beat-popping segments — ready to swap for a real screen-recording of the editor.
-See `ECOSYSTEM-RESKIN-SPEC.md`.
-
-Live: **https://irie-cut.vercel.app**
-
 Irie Cut began as a rebuild on top of the [OpenCut](https://github.com/opencut-app/opencut)
-rewrite scaffold (MIT) and is developed independently. Where producer features were
-inspired by an earlier media-studio prototype, they were re-implemented here as real,
-working features (the prototype's were largely placeholders).
+rewrite scaffold (MIT) and is developed independently — the scaffold provided project
+tooling; the editor itself (rendering, export, effects, audio, beat-cutting) was built
+from there.
 
 > **New here? Read [ARCHITECTURE.md](ARCHITECTURE.md)** — the code graph: an annotated
 > map of every file, how the pieces connect, the core data flows, and where to add things.
 > AI agents should start at [AGENTS.md](AGENTS.md).
-
----
-
-## More views
-
-| Landing page | Your projects |
-| --- | --- |
-| <img width="1654" height="682" alt="Irie Cut's landing page — headline, a live preview of the editor, and the 100% on-device / no sign-up / MIT licensed promise" src="https://github.com/user-attachments/assets/1c262fcc-24b7-4385-9c22-b8921cb37278" /> | <img width="1664" height="804" alt="The projects screen listing saved edits, with quick-import buttons for bringing in work from Pam or Video Studio" src="https://github.com/user-attachments/assets/8ba923d2-120e-4c12-9b0a-6780b7e64389" /> |
-| What greets you at [irie-cut.vercel.app](https://irie-cut.vercel.app) | Every project lives in your browser — nothing to log into |
 
 ---
 
@@ -59,33 +35,29 @@ working features (the prototype's were largely placeholders).
 - **Undo/redo** with gesture coalescing (a drag or slider sweep is one step).
 - Timeline polish — video **filmstrip thumbnails** and decoded **audio waveforms** on clips.
 
+**Effects & compositing**
+- Color adjustments (brightness/contrast/saturation/hue), composed with filter presets.
+- 17 blend modes; reveal masks (rectangle/ellipse/linear, feathered, invertible).
+- A real WebGL **chroma key** (green screen).
+
 **Preview & export**
 - Canvas preview with real-time playback, synced audio, master volume.
 - **Audio mixing** — clip × track × master gain, mute/solo, fade envelopes — identical in preview and export.
-- **In-browser MP4 export** (H.264 + AAC) via canvas `captureStream` + Web Audio + `MediaRecorder`.
+- **In-browser MP4 export**, including a frame-accurate WebCodecs path for higher quality/speed.
 
-**Producer / studio**
+**Music & beat-cutting**
+- **Beat-cut** — cut selected clips or stills to the beat of a song on the timeline; media-agnostic (`lib/beat-cut.ts`, `lib/beat-detect.ts`).
+- **Cover motion** — a cinematic multi-phase Ken-Burns push, plus a motion preset menu (`lib/motion.ts`).
+- **Sound bar** — an on-frame audio spectrum visualizer (FFT), mirrored so the bass pumps at both ends, with a bass-colour flash; bakes into the export (`lib/audio-spectrum.ts`).
+
+**Producer touches**
 - Format templates (UGC Reel, Square, Widescreen, Vertical Quote, YouTube Music Video) that set the canvas and drop a starter layout.
 - **Captions** → valid `.srt` / `.vtt` export from text-clip timing.
-- **Story beats** (hook/problem/proof/product/human/benefit/CTA) → structured **EDL** and **cutdown** JSON export.
-- **Export readiness scorecard** — a real 0–100 score with inline fixes for hook, CTA, length, caption coverage, audio, pacing, aspect, blank openings, visual gaps, text safe zones and audio balance.
+- **Export readiness scorecard** — a real 0–100 score with inline fixes for length, caption coverage, audio, pacing, aspect, blank openings, visual gaps, text safe zones and audio balance.
+- A small shared **brand kit** — save a color palette and font, apply to text in one click.
 
-**Music promo** (the make-your-own-music-video lane)
-- **Beat-cut** — Pam's N cover variations (or any selected clips) cut to the song's beat; engine is media-agnostic (`lib/beat-cut.ts`).
-- **Ecosystem handoffs** — one-click **From Pam** and **From Video Studio** imports (`.iriepromo.json`); see [IMPORTING.md](IMPORTING.md).
-- **Pam Album imports** — `iriePromo: 2` YouTube Album Release folders open in an import review: track/audio/video/lyrics/LRC preflight, missing-asset repair, Pam v2.1 hint consumption, music-video formula packs, visual and caption choices, export target checklist, honest enhance/prep intent, then one long 16:9 album timeline with track audio, existing videos, fallback visuals, lyric captions, chapters, and important section markers.
-- **Music Video Formula Packs** — album imports can start from reusable creative formulas like Album Art Motion, Studio Performance, Cinematic R&B, Rap / Street Visual, Anime MV, Dreamy Fantasy, Lyric Visualizer, and Shorts Hook Cutdown.
-- **Cover motion** — a cinematic multi-phase Ken-Burns that actually moves across a full song, plus a Motion preset menu (`lib/motion.ts`).
-- **Karaoke captions** — re-sync lyrics to the **actual vocal** with Whisper word-timings (keeps your exact lyrics), and auto-captions keep word timings for **word-by-word highlight** in preview + export (`lib/lyric-sync.ts`, `lib/caption-words.ts`).
-- **Sound bar** — an on-frame audio spectrum visualizer (FFT), mirrored so the bass pumps at both ends, with a bass-colour flash; bakes into the export (`lib/audio-spectrum.ts`).
-- **Faceless YouTube music-video workflow** — a 16:9 starter layout plus export-readiness checks for continuous music, loop/background variety, and chapter markers.
-
-**AI assist** (optional, see below)
-- Marketing copy (hooks/CTAs/captions/scripts), image generation, word-timed auto-captions, and audio-accurate caption re-sync (Whisper).
-
-**Private by default** — projects and media persist in IndexedDB; the only network calls are the optional AI endpoints.
-
-> **Where this is headed:** see [SESSION-NOTES.md](SESSION-NOTES.md) for the 2026-06-24 build log and an honest read on turning this into a paid "bring-your-own-song → karaoke music video" SaaS.
+**Private by default** — projects and media persist in IndexedDB. There is no server
+component and no network calls of any kind; the editor runs entirely offline once loaded.
 
 ---
 
@@ -99,11 +71,9 @@ working features (the prototype's were largely placeholders).
 | Rendering | HTML Canvas 2D compositor (shared by preview + export) |
 | Audio | Web Audio API (mixing graph in export; element gain in preview) |
 | Build | Vite 8 → static SPA |
-| Serverless | Vercel Functions in `/api` (dependency-free) for AI |
-| Hosting | Vercel (static SPA + `/api` functions), git-auto-deploy |
 
-There is no backend for the editor itself — it is a pure client-side SPA. The only
-server code is the optional AI functions in `/api`.
+There is no backend of any kind. This is a pure client-side single-page app — build it,
+host the static output anywhere, done.
 
 ---
 
@@ -111,34 +81,23 @@ server code is the optional AI functions in `/api`.
 
 ```text
 irie-cut/
-├── api/                      Vercel serverless functions (AI; dependency-free)
-│   ├── ai-copy.ts            marketing copy (Anthropic → gateway → OpenAI)
-│   ├── ai-image.ts           image generation (OpenAI gpt-image-1)
-│   └── ai-transcribe.ts      audio → timed captions (OpenAI Whisper)
 ├── apps/
-│   ├── web/                  the editor SPA (Vite)
-│   │   ├── index.html        SPA entry
-│   │   ├── src/
-│   │   │   ├── main.tsx              app bootstrap (router + providers)
-│   │   │   ├── routes/              file-based routes (landing, projects, editor)
-│   │   │   ├── components/editor/   the editor UI (timeline, preview, panels, dialogs)
-│   │   │   ├── components/ui/       shadcn/base-ui primitives
-│   │   │   ├── stores/             editor-store.ts (single source of truth)
-│   │   │   ├── lib/                pure logic (renderer, exporter, audio, filters, …)
-│   │   │   ├── hooks/              playback clock, waveform decode
-│   │   │   ├── types/editor.ts     domain types
-│   │   │   └── styles.css          Tailwind theme
-│   │   ├── vercel.json       CLI-deploy config (deploy from apps/web)
-│   │   └── vite.config.ts
-│   └── api/                  (legacy OpenCut echo worker — unused by the editor)
-├── vercel.json               root config: builds apps/web, SPA rewrite, /api functions
+│   └── web/                  the editor SPA (Vite)
+│       ├── index.html        SPA entry
+│       ├── src/
+│       │   ├── main.tsx              app bootstrap (router + providers)
+│       │   ├── routes/              file-based routes (landing, projects, editor)
+│       │   ├── components/editor/   the editor UI (timeline, preview, panels, dialogs)
+│       │   ├── components/ui/       shadcn/base-ui primitives
+│       │   ├── stores/             editor-store.ts (single source of truth)
+│       │   ├── lib/                pure logic (renderer, exporter, audio, filters, …)
+│       │   ├── hooks/              playback clock, waveform decode
+│       │   ├── types/editor.ts     domain types
+│       │   └── styles.css          Tailwind theme
+│       └── vite.config.ts
 ├── ARCHITECTURE.md           the code graph (read this to navigate the repo)
-├── AI-MUSIC-VIDEO-WORKFLOW.md
-│                              faceless YouTube music-video extraction notes
-├── VPS-MIGRATION-ASSESSMENT.md
-│                              current Vercel-to-VPS migration assessment
-└── REMOTION-SUPERPOWERS-EXTRACTION.md
-                               read-only research notes and extracted ideas
+├── AGENTS.md                 orientation for AI coding agents
+└── ROADMAP.md                feature history and what's next
 ```
 
 Full per-file annotations and the module/data-flow diagram are in [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -163,53 +122,14 @@ cd apps/web
 bun run build        # outputs apps/web/dist
 ```
 
-> AI endpoints (`/api/*`) don't run under plain `vite dev`. Use `vercel dev` from the
-> repo root, or test them on the deployed site.
-
----
-
-## AI assist (optional)
-
-The editor is fully functional without AI. To enable it, set keys in your Vercel
-project env. Each feature uses the provider it's best at, and each falls back gracefully.
-
-| Feature | Provider order | Key(s) |
-| --- | --- | --- |
-| Copy assist | Anthropic (Claude) → AI Gateway → OpenAI | `ANTHROPIC_API_KEY` *(and/or)* `AI_GATEWAY_API_KEY` / `OPENAI_API_KEY` |
-| Image generation | OpenAI `gpt-image-1` | `OPENAI_API_KEY` |
-| Auto-captions | OpenAI Whisper phrase + word timing | `OPENAI_API_KEY` |
-
-Copy assist prefers a direct `ANTHROPIC_API_KEY` (native Messages API, Claude Sonnet 4.6),
-because the Vercel AI Gateway free tier gates premium models. With only a gateway key it
-uses the gateway; with only an OpenAI key it uses GPT. Set any one and it works.
-
-**Optional overrides:**
-
-```text
-AI_ANTHROPIC_MODEL      default claude-sonnet-4-6      (native Anthropic id, hyphens)
-AI_TEXT_MODEL           default anthropic/claude-sonnet-4.6   (gateway slug, dots)
-AI_OPENAI_TEXT_MODEL    default gpt-4o-mini
-AI_BASE_URL             default https://ai-gateway.vercel.sh/v1
-AI_IMAGE_MODEL          default gpt-image-1
-AI_IMAGE_BASE_URL       default https://api.openai.com/v1
-AI_TRANSCRIBE_MODEL     default whisper-1
-AI_TRANSCRIBE_BASE_URL  default https://api.openai.com/v1
-```
-
-Env changes apply to **new** deployments — redeploy after setting keys.
-
 ---
 
 ## Deployment
 
-The web app is a static SPA built from `apps/web`. The **root `vercel.json`** wires:
-- `installCommand` / `buildCommand` that build `apps/web`
-- `outputDirectory` → `apps/web/dist`
-- a SPA rewrite that sends client routes to `index.html` **but excludes `/api`**
-- `/api/*` serverless functions (auto-detected at the repo root)
-
-The GitHub repo is connected to the Vercel project, so **pushing to `main` auto-deploys**.
-(`apps/web/vercel.json` exists for one-off `cd apps/web && vercel --prod` CLI deploys.)
+The web app is a static SPA built from `apps/web` — the build output in `apps/web/dist`
+can be hosted anywhere that serves static files (Vercel, Netlify, Cloudflare Pages, GitHub
+Pages, your own server). No environment variables, no backend, no serverless functions
+required.
 
 ---
 

@@ -13,7 +13,7 @@ function round3(n: number): number {
 }
 
 /**
- * Attach Whisper word timings to line/phrase captions.
+ * Attach word-level timings to line/phrase captions.
  *
  * Both inputs are source-local seconds. Output word times are caption-local
  * seconds, which matches TextProperties.words and the shared renderer.

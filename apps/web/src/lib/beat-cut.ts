@@ -2,7 +2,7 @@
 // and a set of media sources, decide cut points (every K-th beat, cycling the
 // sources) and build the resulting clips. Media-agnostic — stills get a
 // per-clip Ken-Burns push; video clips are placed without added motion. No
-// generation, no I/O. Consumed by lib/pam-import and the editor store.
+// generation, no I/O. Consumed by the editor store's beatCutToBeats action.
 
 import type { Clip } from '#/types/editor'
 

@@ -25,8 +25,8 @@ bun run test      # vitest
 bunx tsc --noEmit # typecheck
 ```
 
-No `.env` needed to run the editor itself — it works with zero network calls. A `.env` is
-only required if you're touching the optional `/api` AI functions (see below).
+No `.env` or any configuration is needed to run the editor — it works with zero network
+calls, always.
 
 ## The rules that keep this project coherent
 
@@ -39,12 +39,9 @@ apart, undo/redo breaking, SSR crashes):
 2. **Every project edit goes through `mutate()`** in `stores/editor-store.ts`. That's what keeps
    undo/redo and IndexedDB persistence working. For frequent updates (drags, slider input,
    typing) pass a `coalesceKey` so you don't spam the undo stack.
-3. **The editor core must work with zero network.** This is the whole pitch — no accounts, no
-   server, runs entirely on-device. The only network calls live in `/api/ai-*.ts`, and they're
-   optional: the UI must keep working (gracefully, without those features) if no AI key is set.
-4. **`/api` functions stay dependency-free** — plain `fetch`, no SDK imports. There's no root
-   `package.json` for them to resolve packages against.
-5. Don't hand-edit `apps/web/src/routeTree.gen.ts` — it's generated.
+3. **The editor must work with zero network, no exceptions.** This is the whole pitch — no
+   accounts, no server, runs entirely on-device.
+4. Don't hand-edit `apps/web/src/routeTree.gen.ts` — it's generated.
 
 ## What "done" looks like
 

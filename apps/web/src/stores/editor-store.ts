@@ -25,8 +25,6 @@ import { detectMediaType, probeMedia } from '#/lib/media'
 import { getBeats } from '#/lib/beat-detect'
 import { planBeatCut, clipsFromSegments, type BeatCutSource } from '#/lib/beat-cut'
 import { motionKeyframes, type MotionPreset } from '#/lib/motion'
-import { transcribe } from '#/lib/ai'
-import { syncLyricsToAudio } from '#/lib/lyric-sync'
 import { computeSpectrum, getSpectrum } from '#/lib/audio-spectrum'
 import { CAPTION_STYLES } from '#/lib/caption-styles'
 import { attachWordsToCaptions } from '#/lib/caption-words'
@@ -133,7 +131,6 @@ interface EditorState {
   detectBeats: (clipId: string) => Promise<number>
   pulseToBeats: (coverClipId: string) => Promise<number>
   applyMotion: (clipId: string, preset: MotionPreset) => Promise<void>
-  resyncCaptions: () => Promise<number>
   setVisualizer: (patch: Partial<NonNullable<Project['visualizer']>>) => Promise<void>
   beatCutToBeats: (clipIds: string[], k?: number) => Promise<number>
   duplicateClip: (clipId: string) => void
@@ -908,66 +905,6 @@ export const useEditorStore = create<EditorState>((set, get) => {
       const cur = get().project?.visualizer ?? { enabled: false }
       mutate((p) => ({ ...p, visualizer: { ...cur, ...patch } }))
       if (get().project?.visualizer?.enabled) await ensureSpectrum()
-    },
-
-    async resyncCaptions() {
-      const project = get().project
-      if (!project) throw new Error('No project open.')
-      const song = project.tracks.flatMap((t) => t.clips).find((c) => c.type === 'audio' && c.mediaId)
-      if (!song?.mediaId) throw new Error('No song on the timeline to sync to.')
-      const textTrack = project.tracks.find((t) => t.type === 'text')
-      const caps = (textTrack?.clips ?? [])
-        .filter((c) => c.type === 'text' && c.text?.content?.trim())
-        .slice()
-        .sort((a, b) => a.start - b.start)
-      if (!caps.length) throw new Error('No captions to re-sync — import a song with lyrics first.')
-      const blob = await storage.getMediaBlob(song.mediaId)
-      if (!blob) throw new Error('Song audio not found.')
-
-      const { words } = await transcribe(blob)
-      if (!words.length) {
-        throw new Error('Transcription returned no word timings (check OPENAI_API_KEY and that the audio has vocals).')
-      }
-
-      const synced = syncLyricsToAudio(caps.map((c) => ({ text: c.text!.content })), words)
-      const off = song.start - song.trimStart // audio file-time → timeline-time
-      const base = caps[0].text!
-      const trackId = textTrack!.id
-      const removeIds = new Set(caps.map((c) => c.id))
-
-      const newClips: Clip[] = synced.map((ln, i) => {
-        const start = Math.max(0, ln.start + off)
-        const end = Math.max(start + 0.4, ln.end + off)
-        const dur = round3(end - start)
-        const localWords = ln.words.map((w) => ({
-          start: round3(Math.max(0, w.start + off - start)),
-          end: round3(Math.max(0, w.end + off - start)),
-          text: w.text,
-        }))
-        return {
-          id: caps[i]?.id ?? uid(),
-          trackId,
-          type: 'text' as const,
-          name: 'Caption',
-          start: round3(start),
-          duration: dur,
-          trimStart: 0,
-          trimEnd: dur,
-          volume: 1,
-          keyframes: { opacity: [{ t: 0, value: 0 }, { t: Math.min(0.2, dur * 0.3), value: 1 }] },
-          text: { ...base, content: ln.text, karaoke: true, karaokeColor: base.karaokeColor || '#25c281', words: localWords },
-        }
-      })
-
-      mutate((p) => ({
-        ...p,
-        tracks: p.tracks.map((t) =>
-          t.id !== trackId
-            ? t
-            : { ...t, clips: [...t.clips.filter((c) => !removeIds.has(c.id)), ...newClips].sort((a, b) => a.start - b.start) },
-        ),
-      }))
-      return newClips.length
     },
 
     async beatCutToBeats(clipIds, k = 2) {
