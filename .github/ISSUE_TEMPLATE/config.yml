@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Contributing guide
-    url: https://github.com/corey470/irie-cut/blob/main/CONTRIBUTING.md
+    url: https://github.com/irie-tools/irie-cut/blob/main/CONTRIBUTING.md
     about: Read this before opening a PR — local setup, the project's hard rules, and what "done" looks like.

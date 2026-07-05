@@ -14,7 +14,7 @@ Everything else is client-side: timeline state, media storage, preview, export, 
 
 ## Current source truth
 
-- GitHub repo: `corey470/irie-cut`
+- GitHub repo: `irie-tools/irie-cut`
 - Current public URL in docs: `https://irie-cut.vercel.app`
 - Build output: `apps/web/dist`
 - Root Vercel config:

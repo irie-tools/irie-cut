@@ -1,6 +1,3 @@
-<img width="1687" height="787" alt="Screenshot 2026-07-05 at 6 01 12 PM" src="https://github.com/user-attachments/assets/05e002a2-31af-4dcf-a1a2-b824b1e9411d" />
-<img width="1664" height="804" alt="Screenshot 2026-07-05 at 6 01 01 PM" src="https://github.com/user-attachments/assets/8ba923d2-120e-4c12-9b0a-6780b7e64389" />
-<img width="1654" height="682" alt="Screenshot 2026-07-05 at 6 00 47 PM" src="https://github.com/user-attachments/assets/1c262fcc-24b7-4385-9c22-b8921cb37278" />
 # Irie Cut
 
 **The cutting room of the Irie ecosystem.** A free, open, in-browser video editor that
@@ -10,6 +7,10 @@ platform. Import clips, cut and layer them on a multi-track timeline, grade them
 titles and captions, score the cut, and export an MP4 — no account, no watermark, nothing
 uploaded. Your media lives in the browser (IndexedDB) and every frame is rendered
 on-device.
+
+<img width="1687" height="787" alt="Irie Cut's multi-track editor open on a real project — captions, visuals and song tracks on the timeline, sound-bar visualizer settings on the right" src="https://github.com/user-attachments/assets/05e002a2-31af-4dcf-a1a2-b824b1e9411d" />
+
+*The real editor, mid-project — multi-track timeline, sound-bar visualizer, everything rendered on-device.*
 
 ## Consolidation ruling (2026-07-02)
 
@@ -35,6 +36,15 @@ working features (the prototype's were largely placeholders).
 > **New here? Read [ARCHITECTURE.md](ARCHITECTURE.md)** — the code graph: an annotated
 > map of every file, how the pieces connect, the core data flows, and where to add things.
 > AI agents should start at [AGENTS.md](AGENTS.md).
+
+---
+
+## More views
+
+| Landing page | Your projects |
+| --- | --- |
+| <img width="1654" height="682" alt="Irie Cut's landing page — headline, a live preview of the editor, and the 100% on-device / no sign-up / MIT licensed promise" src="https://github.com/user-attachments/assets/1c262fcc-24b7-4385-9c22-b8921cb37278" /> | <img width="1664" height="804" alt="The projects screen listing saved edits, with quick-import buttons for bringing in work from Pam or Video Studio" src="https://github.com/user-attachments/assets/8ba923d2-120e-4c12-9b0a-6780b7e64389" /> |
+| What greets you at [irie-cut.vercel.app](https://irie-cut.vercel.app) | Every project lives in your browser — nothing to log into |
 
 ---
 
@@ -207,7 +217,7 @@ The GitHub repo is connected to the Vercel project, so **pushing to `main` auto-
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for local setup and the project's hard rules (shared
 renderer, `mutate()`-only edits, client-only core). Issues labeled
-[`good first issue`](https://github.com/corey470/irie-cut/labels/good%20first%20issue) are
+[`good first issue`](https://github.com/irie-tools/irie-cut/labels/good%20first%20issue) are
 scoped small on purpose — a good place to start.
 
 ## License

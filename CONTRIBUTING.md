@@ -8,7 +8,7 @@ outside-contributor version of the project's internal guides ([AGENTS.md](AGENTS
 
 1. **Look for an existing issue** on what you want to build, or open one to discuss it first —
    especially for anything bigger than a small fix. Saves everyone rework.
-2. Issues labeled [`good first issue`](https://github.com/corey470/irie-cut/labels/good%20first%20issue)
+2. Issues labeled [`good first issue`](https://github.com/irie-tools/irie-cut/labels/good%20first%20issue)
    are scoped small and don't require deep familiarity with the codebase.
 
 ## Local setup
