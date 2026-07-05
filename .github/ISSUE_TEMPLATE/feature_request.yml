@@ -1,0 +1,20 @@
+name: Feature request
+description: Suggest something the editor doesn't do yet
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The editing task or workflow this would unblock, not just the feature name.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: How might it work?
+      description: Rough shape is fine — sketches, references to other editors, whatever helps.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What do you do today without it?

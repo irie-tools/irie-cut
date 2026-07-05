@@ -200,6 +200,13 @@ The GitHub repo is connected to the Vercel project, so **pushing to `main` auto-
 
 ---
 
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for local setup and the project's hard rules (shared
+renderer, `mutate()`-only edits, client-only core). Issues labeled
+[`good first issue`](https://github.com/corey470/irie-cut/labels/good%20first%20issue) are
+scoped small on purpose — a good place to start.
+
 ## License
 
 [MIT](LICENSE)
