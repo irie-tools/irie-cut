@@ -1,3 +1,6 @@
+<img width="1687" height="787" alt="Screenshot 2026-07-05 at 6 01 12 PM" src="https://github.com/user-attachments/assets/05e002a2-31af-4dcf-a1a2-b824b1e9411d" />
+<img width="1664" height="804" alt="Screenshot 2026-07-05 at 6 01 01 PM" src="https://github.com/user-attachments/assets/8ba923d2-120e-4c12-9b0a-6780b7e64389" />
+<img width="1654" height="682" alt="Screenshot 2026-07-05 at 6 00 47 PM" src="https://github.com/user-attachments/assets/1c262fcc-24b7-4385-9c22-b8921cb37278" />
 # Irie Cut
 
 **The cutting room of the Irie ecosystem.** A free, open, in-browser video editor that
