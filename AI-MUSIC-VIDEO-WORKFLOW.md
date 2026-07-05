@@ -35,6 +35,7 @@ The source says "CapCut" for the assembly step. In Irie Cut terms that maps to:
 - Album imports now stop at a review/preflight screen before project creation. The review shows track order, duration, found/missing audio, found/missing videos, lyrics/caption counts, chapter coverage, and lets the user attach replacement files for missing assets.
 - The review includes Music Video Formula Packs inspired by current AI MV workflow research: Album Art Motion, Studio Performance, Cinematic R&B, Rap / Street Visual, Anime MV, Dreamy Fantasy, Lyric Visualizer, and Shorts Hook Cutdown.
 - Each formula sets visual treatment, caption strategy, export targets, enhance/prep intent, and creative direction notes. Prep actions are recorded honestly as project notes today; they are hooks for future real enhance/denoise/stabilize/optical-flow processing, not fake processing.
+- Pam v2.1 hints are consumed when present: `recommendedFormulaId` sets the initial formula, `lrcPath` is preferred over plain lyrics for caption timing, visual bible notes are carried into project notes, hook/chorus/bridge/climax sections become timeline markers, shorts candidates are counted in preflight, and prep hints seed the enhance queue.
 - Final album assembly places track audio in order, uses existing or replacement track videos when present, creates fallback visuals, adds lyrics captions from lyrics files, and creates timeline markers from chapters.
 - Added workflow-specific score checks in `apps/web/src/lib/score.ts`:
   - 16:9 HD music-video format

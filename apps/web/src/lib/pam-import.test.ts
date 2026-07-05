@@ -41,19 +41,39 @@ describe('analyzePamAlbumImport', () => {
         durationSec: 12,
         audioPath: '../tracks/01/audio.mp3',
         lyricsPath: '../tracks/01/lyrics.txt',
+        lrcPath: '../tracks/01/lyrics.lrc',
         existingVideoPath: '../tracks/01/video.mp4',
+        sections: [{ label: 'chorus', startSec: 0, endSec: 8, intensity: 5 }],
+        shortsCandidates: [{ startSec: 0, endSec: 12, hook: 'One', platform: 'shorts' }],
+        prepHints: { audio: ['volume_check'], video: ['enhance_review', 'stabilize_review', 'optical_flow_review'] },
       }],
+      irieCutHints: {
+        version: '2.1',
+        recommendedFormulaId: 'lyric-visualizer',
+        visualBible: { mood: 'warm and hopeful', palette: ['olive green'] },
+        sections: [{ trackNo: 1, title: 'Open Water', label: 'chorus', startSec: 0, endSec: 8, intensity: 5 }],
+        shortsCandidates: [{ trackNo: 1, title: 'Open Water', startSec: 0, endSec: 12, hook: 'One' }],
+        prepHints: [{ trackNo: 1, title: 'Open Water', audio: ['volume_check'], video: ['enhance_review', 'stabilize_review', 'optical_flow_review'] }],
+        lyricTiming: { format: 'lrc', note: 'Review LRC timing.' },
+      },
     }
     const result = await analyzePamAlbumImport([
       folderFile('release/handoffs/irie_cut_album.iriepromo.json', JSON.stringify(packet), 'application/json'),
       folderFile('release/tracks/01/audio.mp3', 'audio', 'audio/mpeg'),
       folderFile('release/tracks/01/lyrics.txt', '[00:00.00]One\n[00:06.00]Two'),
+      folderFile('release/tracks/01/lyrics.lrc', '[00:00.00]One\n[00:06.00]Two'),
     ])
 
     expect(result.trackCount).toBe(1)
     expect(result.chapterCount).toBe(1)
+    expect(result.recommendedFormulaId).toBe('lyric-visualizer')
     expect(result.totals.audioFound).toBe(1)
+    expect(result.totals.lrcFound).toBe(1)
     expect(result.totals.captions).toBe(2)
+    expect(result.totals.sections).toBe(1)
+    expect(result.totals.shortsCandidates).toBe(1)
+    expect(result.prepActions).toEqual(['enhance', 'denoise', 'stabilize', 'optical-flow'])
+    expect(result.lyricTimingNote).toBe('Review LRC timing.')
     expect(result.tracks[0].missing).toEqual(['video'])
   })
 })

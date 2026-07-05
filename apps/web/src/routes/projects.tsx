@@ -146,9 +146,13 @@ function ProjectsInner() {
     try {
       const selected = Array.from(files)
       const review = await analyzePamAlbumImport(selected)
+      const hintedOptions = optionsFromMusicVideoFormula(review.recommendedFormulaId)
       setAlbumFiles(selected)
       setAlbumReview(review)
-      setAlbumOptions(ALBUM_REVIEW_DEFAULTS)
+      setAlbumOptions({
+        ...hintedOptions,
+        prepActions: review.prepActions.length ? review.prepActions : hintedOptions.prepActions,
+      })
       setAlbumOverrides({})
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Could not import that Pam album release folder.')
@@ -538,10 +542,13 @@ function PamAlbumReviewDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
               <AlbumStat icon={<Music className="size-4" />} label="Tracks" value={String(review.trackCount)} />
               <AlbumStat icon={<Clock className="size-4" />} label="Runtime" value={formatDuration(review.durationSec)} />
               <AlbumStat icon={<Captions className="size-4" />} label="Captions" value={String(review.totals.captions)} />
+              <AlbumStat icon={<Captions className="size-4" />} label="LRC" value={`${review.totals.lrcFound}/${review.trackCount}`} />
+              <AlbumStat icon={<SlidersHorizontal className="size-4" />} label="Sections" value={String(review.totals.sections)} />
+              <AlbumStat icon={<WandSparkles className="size-4" />} label="Shorts" value={String(review.totals.shortsCandidates)} />
               <AlbumStat
                 icon={missingCount ? <AlertTriangle className="size-4" /> : <CheckCircle className="size-4" />}
                 label="Issues"
@@ -573,7 +580,9 @@ function PamAlbumReviewDialog({
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             <StatusPill ok={track.audioFound || !!override?.audioFile} label="Audio" />
                             <StatusPill ok={track.videoFound || !!override?.videoFile} label={track.videoFound || override?.videoFile ? 'Video' : 'Fallback card'} warn={!track.videoFound && !override?.videoFile} />
-                            <StatusPill ok={track.lyricsFound || !!override?.lyricsFile} label={`${track.captionCount} captions`} warn={!track.lyricsFound && track.captionMode !== 'none'} />
+                            <StatusPill ok={track.lyricsFound || !!override?.lyricsFile} label={`${track.captionCount} captions${track.lrcFound ? ' · LRC' : ''}`} warn={!track.lyricsFound && track.captionMode !== 'none'} />
+                            {track.sectionCount > 0 && <StatusPill ok label={`${track.sectionCount} sections`} />}
+                            {track.shortsCount > 0 && <StatusPill ok label={`${track.shortsCount} shorts`} />}
                           </div>
                         </div>
                         <div className="grid gap-2 text-xs">
@@ -617,7 +626,19 @@ function PamAlbumReviewDialog({
                     </SelectContent>
                   </Select>
                   <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{selectedFormula.summary}</p>
-                  <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-primary/80">{selectedFormula.bestFor}</p>
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-primary/80">
+                    {selectedFormula.bestFor}
+                    {review.recommendedFormulaId === options.formulaId ? ' · Pam suggested' : ''}
+                  </p>
+                  {review.visualBible && (
+                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                      {review.visualBible.mood ? `${review.visualBible.mood}. ` : ''}
+                      {review.visualBible.palette?.length ? `Palette: ${review.visualBible.palette.join(', ')}.` : ''}
+                    </p>
+                  )}
+                  {review.lyricTimingNote && (
+                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{review.lyricTimingNote}</p>
+                  )}
                   <div className="mt-3 grid gap-1.5">
                     {selectedFormula.direction.map((note) => (
                       <span key={note} className="rounded bg-background/50 px-2 py-1 text-xs text-muted-foreground">

@@ -43,11 +43,15 @@ interface AlbumTimelineItem {
   durationSec: number
   audioPath?: string | null
   lyricsPath?: string | null
+  lrcPath?: string | null
   descriptionPath?: string | null
   thumbnailPromptPath?: string | null
   existingVideoPath?: string | null
   fallbackVisual?: string | null
   captionMode?: string | null
+  sections?: PamAlbumSectionHint[]
+  shortsCandidates?: PamAlbumShortsCandidate[]
+  prepHints?: PamAlbumPrepHints | null
 }
 
 interface AlbumBundle {
@@ -60,6 +64,7 @@ interface AlbumBundle {
   albumTitle?: string
   timeline?: AlbumTimelineItem[]
   chapters?: { at: number; label: string }[]
+  irieCutHints?: PamAlbumHints
 }
 
 export type PamAlbumVisualPreset = 'album-card' | 'lyric-video' | 'visualizer' | 'cinematic'
@@ -86,6 +91,64 @@ export interface MusicVideoFormula {
   exportTargets: PamAlbumExportTarget[]
   prepActions: PamAlbumPrepAction[]
   direction: string[]
+}
+
+interface PamAlbumSectionHint {
+  trackNo?: number
+  title?: string
+  label: string
+  sourceName?: string
+  startSec: number
+  endSec: number
+  albumStartSec?: number
+  albumEndSec?: number
+  intensity?: number
+}
+
+interface PamAlbumShortsCandidate {
+  trackNo?: number
+  title?: string
+  startSec: number
+  endSec: number
+  albumStartSec?: number
+  albumEndSec?: number
+  hook?: string
+  platform?: string
+  reason?: string
+  suggestedPlatform?: string
+}
+
+interface PamAlbumPrepHints {
+  trackNo?: number
+  title?: string
+  audioPath?: string | null
+  existingVideoPaths?: string[]
+  audio?: string[]
+  video?: string[]
+}
+
+interface PamAlbumHints {
+  version?: string
+  manualOnly?: boolean
+  recommendedFormulaId?: string
+  formulaOptions?: string[]
+  visualBible?: {
+    palette?: string[]
+    mood?: string
+    genre?: string
+    style?: string
+    avoid?: string[]
+    references?: string[]
+    notes?: string[]
+  }
+  sections?: PamAlbumSectionHint[]
+  shortsCandidates?: PamAlbumShortsCandidate[]
+  prepHints?: PamAlbumPrepHints[]
+  lyricTiming?: {
+    format?: string
+    files?: { trackNo?: number; title?: string; path?: string | null }[]
+    note?: string
+  }
 }
 
 export const MUSIC_VIDEO_FORMULAS: readonly MusicVideoFormula[] = [
@@ -204,6 +267,10 @@ export interface PamAlbumPreflightTrack {
   captionCount: number
   fallbackVisual?: string | null
   captionMode?: string | null
+  sectionCount: number
+  shortsCount: number
+  lrcFound: boolean
+  prepHints?: PamAlbumPrepHints | null
   missing: ('audio' | 'video' | 'lyrics')[]
 }
 
@@ -216,20 +283,33 @@ export interface PamAlbumPreflight {
   durationSec: number
   trackCount: number
   chapterCount: number
+  recommendedFormulaId: PamAlbumFormulaId
+  visualBible?: PamAlbumHints['visualBible']
+  sections: PamAlbumSectionHint[]
+  shortsCandidates: PamAlbumShortsCandidate[]
+  prepActions: PamAlbumPrepAction[]
+  lyricTimingNote?: string
   tracks: PamAlbumPreflightTrack[]
   totals: {
     audioFound: number
     videoFound: number
     lyricsFound: number
+    lrcFound: number
     captions: number
     missingAudio: number
     missingVideo: number
     missingLyrics: number
+    sections: number
+    shortsCandidates: number
   }
 }
 
 export function getMusicVideoFormula(id: PamAlbumFormulaId | undefined): MusicVideoFormula {
   return MUSIC_VIDEO_FORMULAS.find((formula) => formula.id === id) ?? MUSIC_VIDEO_FORMULAS[0]
+}
+
+export function isMusicVideoFormulaId(id: string | null | undefined): id is PamAlbumFormulaId {
+  return !!id && MUSIC_VIDEO_FORMULAS.some((formula) => formula.id === id)
 }
 
 export function optionsFromMusicVideoFormula(id: PamAlbumFormulaId): Required<Pick<PamAlbumBuildOptions, 'formulaId' | 'visualPreset' | 'captionStrategy' | 'exportTargets' | 'prepActions'>> {
@@ -241,6 +321,25 @@ export function optionsFromMusicVideoFormula(id: PamAlbumFormulaId): Required<Pi
     exportTargets: [...formula.exportTargets],
     prepActions: [...formula.prepActions],
   }
+}
+
+function prepActionsFromHints(hints: PamAlbumPrepHints[] | undefined): PamAlbumPrepAction[] {
+  const values = new Set<PamAlbumPrepAction>()
+  for (const hint of hints ?? []) {
+    const labels = [...(hint.audio ?? []), ...(hint.video ?? [])].join(' ')
+    if (/enhance|quality|low_quality/i.test(labels)) values.add('enhance')
+    if (/denoise|noise|caption_review|volume_check/i.test(labels)) values.add('denoise')
+    if (/stabilize/i.test(labels)) values.add('stabilize')
+    if (/optical[_ -]?flow|smooth/i.test(labels)) values.add('optical-flow')
+  }
+  return [...values]
+}
+
+export function optionsFromPamAlbumHints(hints: PamAlbumHints | undefined): Required<Pick<PamAlbumBuildOptions, 'formulaId' | 'visualPreset' | 'captionStrategy' | 'exportTargets' | 'prepActions'>> {
+  const formulaId = isMusicVideoFormulaId(hints?.recommendedFormulaId) ? hints.recommendedFormulaId : 'album-art-motion'
+  const options = optionsFromMusicVideoFormula(formulaId)
+  const prepActions = prepActionsFromHints(hints?.prepHints)
+  return prepActions.length ? { ...options, prepActions } : options
 }
 
 function uid(): string {
@@ -594,12 +693,15 @@ export async function analyzePamAlbumImport(input: FileList | File[]): Promise<P
   const { entries, packetPath, baseDir, bundle } = await readAlbumBundle(input)
   const tracks = (bundle.timeline ?? []).slice().sort((a, b) => (a.trackNo || 0) - (b.trackNo || 0))
   if (!tracks.length) throw new Error('Album packet has no timeline tracks.')
+  const hintOptions = optionsFromPamAlbumHints(bundle.irieCutHints)
 
   const rows: PamAlbumPreflightTrack[] = []
   for (const track of tracks) {
     const audioFile = findByPath(entries, baseDir, track.audioPath)
     const videoFile = findByPath(entries, baseDir, track.existingVideoPath)
-    const lyricsFile = findByPath(entries, baseDir, track.lyricsPath)
+    const lrcFile = findByPath(entries, baseDir, track.lrcPath)
+    const plainLyricsFile = findByPath(entries, baseDir, track.lyricsPath)
+    const lyricsFile = lrcFile ?? plainLyricsFile
     let captionCount = 0
     if (lyricsFile && track.captionMode !== 'none') {
       captionCount = parseLyricCaptions(await lyricsFile.text(), track).length
@@ -608,7 +710,7 @@ export async function analyzePamAlbumImport(input: FileList | File[]): Promise<P
     const missing: PamAlbumPreflightTrack['missing'] = []
     if (track.audioPath && !audioFile) missing.push('audio')
     if (track.existingVideoPath && !videoFile) missing.push('video')
-    if (track.lyricsPath && !lyricsFile) missing.push('lyrics')
+    if ((track.lrcPath || track.lyricsPath) && !lyricsFile) missing.push('lyrics')
 
     rows.push({
       key: trackKey(track),
@@ -619,9 +721,13 @@ export async function analyzePamAlbumImport(input: FileList | File[]): Promise<P
       audioFound: !!audioFile,
       videoFound: !!videoFile,
       lyricsFound: !!lyricsFile,
+      lrcFound: !!lrcFile,
       captionCount,
       fallbackVisual: track.fallbackVisual,
       captionMode: track.captionMode,
+      sectionCount: track.sections?.length ?? 0,
+      shortsCount: track.shortsCandidates?.length ?? 0,
+      prepHints: track.prepHints ?? null,
       missing,
     })
   }
@@ -636,15 +742,24 @@ export async function analyzePamAlbumImport(input: FileList | File[]): Promise<P
     durationSec,
     trackCount: rows.length,
     chapterCount: bundle.chapters?.length ?? rows.length,
+    recommendedFormulaId: hintOptions.formulaId,
+    visualBible: bundle.irieCutHints?.visualBible,
+    sections: bundle.irieCutHints?.sections ?? tracks.flatMap((track) => track.sections ?? []),
+    shortsCandidates: bundle.irieCutHints?.shortsCandidates ?? tracks.flatMap((track) => track.shortsCandidates ?? []),
+    prepActions: hintOptions.prepActions,
+    lyricTimingNote: bundle.irieCutHints?.lyricTiming?.note,
     tracks: rows,
     totals: {
       audioFound: rows.filter((t) => t.audioFound).length,
       videoFound: rows.filter((t) => t.videoFound).length,
       lyricsFound: rows.filter((t) => t.lyricsFound).length,
+      lrcFound: rows.filter((t) => t.lrcFound).length,
       captions: rows.reduce((sum, t) => sum + t.captionCount, 0),
       missingAudio: rows.filter((t) => t.missing.includes('audio')).length,
       missingVideo: rows.filter((t) => t.missing.includes('video')).length,
       missingLyrics: rows.filter((t) => t.missing.includes('lyrics')).length,
+      sections: rows.reduce((sum, t) => sum + t.sectionCount, 0),
+      shortsCandidates: rows.reduce((sum, t) => sum + t.shortsCount, 0),
     },
   }
 }
@@ -667,13 +782,37 @@ function shouldCreateLyrics(strategy: PamAlbumCaptionStrategy, captionMode?: str
   return captionMode !== 'none'
 }
 
+function sectionMarkers(tracks: AlbumTimelineItem[], makeId: () => string): { id: string; time: number; label: string }[] {
+  const markers: { id: string; time: number; label: string }[] = []
+  const seen = new Set<string>()
+  for (const track of tracks) {
+    for (const section of track.sections ?? []) {
+      const label = section.label.toLowerCase()
+      const important = section.intensity && section.intensity >= 4
+      if (!important && !/(hook|chorus|bridge|climax)/i.test(label)) continue
+      const time = Math.max(0, section.albumStartSec ?? track.startSec + section.startSec)
+      const key = `${Math.round(time * 10) / 10}:${track.trackNo}:${label}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      markers.push({ id: makeId(), time, label: `${track.trackNo}. ${section.label}` })
+    }
+  }
+  return markers
+}
+
+function compactHintsList(label: string, values: unknown[] | undefined): string | null {
+  if (!values?.length) return null
+  return `${label}: ${values.length}`
+}
+
 export async function buildPamAlbumProject(input: FileList | File[], options: PamAlbumBuildOptions = {}): Promise<string> {
   const { entries, baseDir, bundle } = await readAlbumBundle(input)
-  const visualPreset = options.visualPreset ?? 'album-card'
-  const captionStrategy = options.captionStrategy ?? 'auto'
-  const exportTargets = options.exportTargets?.length ? options.exportTargets : ['youtube-16x9']
-  const prepActions = options.prepActions ?? []
-  const formula = getMusicVideoFormula(options.formulaId)
+  const hintOptions = optionsFromPamAlbumHints(bundle.irieCutHints)
+  const visualPreset = options.visualPreset ?? hintOptions.visualPreset
+  const captionStrategy = options.captionStrategy ?? hintOptions.captionStrategy
+  const exportTargets = options.exportTargets?.length ? options.exportTargets : hintOptions.exportTargets
+  const prepActions = options.prepActions?.length ? options.prepActions : hintOptions.prepActions
+  const formula = getMusicVideoFormula(options.formulaId ?? hintOptions.formulaId)
 
   const now = Date.now()
   const projectId = uid()
@@ -806,7 +945,7 @@ export async function buildPamAlbumProject(input: FileList | File[], options: Pa
       })
     }
 
-    const lyricsFile = overrides?.lyricsFile ?? findByPath(entries, baseDir, track.lyricsPath)
+    const lyricsFile = overrides?.lyricsFile ?? findByPath(entries, baseDir, track.lrcPath) ?? findByPath(entries, baseDir, track.lyricsPath)
     if (lyricsFile && shouldCreateLyrics(captionStrategy, track.captionMode)) {
       const lyricText = await lyricsFile.text()
       for (const cue of parseLyricCaptions(lyricText, track)) {
@@ -834,6 +973,22 @@ export async function buildPamAlbumProject(input: FileList | File[], options: Pa
     }
   }
 
+  const chapterMarkers = (bundle.chapters ?? tracks.map((t) => ({ at: t.startSec, label: trackTitle(t) }))).map((c) => ({
+    id: uid(),
+    time: Math.max(0, c.at || 0),
+    label: c.label || 'Chapter',
+  }))
+  const markers = [...chapterMarkers, ...sectionMarkers(tracks, uid)].sort((a, b) => a.time - b.time)
+  const visualBible = bundle.irieCutHints?.visualBible
+  const hintNotes = [
+    compactHintsList('Sections', bundle.irieCutHints?.sections),
+    compactHintsList('Shorts candidates', bundle.irieCutHints?.shortsCandidates),
+    visualBible?.mood ? `Mood: ${visualBible.mood}` : null,
+    visualBible?.palette?.length ? `Palette: ${visualBible.palette.join(', ')}` : null,
+    visualBible?.avoid?.length ? `Avoid: ${visualBible.avoid.join(', ')}` : null,
+    bundle.irieCutHints?.lyricTiming?.note ? `Lyric timing: ${bundle.irieCutHints.lyricTiming.note}` : null,
+  ].filter(Boolean) as string[]
+
   const project: Project = {
     id: projectId,
     name: `${bundle.title || bundle.albumTitle || 'Pam album'} — YouTube album`,
@@ -844,11 +999,7 @@ export async function buildPamAlbumProject(input: FileList | File[], options: Pa
     fps,
     background: '#000000',
     masterVolume: 1,
-    markers: (bundle.chapters ?? tracks.map((t) => ({ at: t.startSec, label: trackTitle(t) }))).map((c) => ({
-      id: uid(),
-      time: Math.max(0, c.at || 0),
-      label: c.label || 'Chapter',
-    })),
+    markers,
     visualizer: { enabled: true, color: '#f2ede4', bassColor: '#ff5236', bassReactive: true, bassCenter: true, y: 0.9 },
     promo: {
       source: 'pam',
@@ -863,6 +1014,7 @@ export async function buildPamAlbumProject(input: FileList | File[], options: Pa
           `Export targets: ${exportTargets.join(', ')}`,
           prepActions.length ? `Prep queue: ${prepActions.join(', ')}` : 'Prep queue: none selected',
           ...formula.direction.map((note) => `Direction: ${note}`),
+          ...hintNotes,
         ],
         rolloutNotes: [
           'Imported from a Pam YouTube Album Release packet (iriePromo v2).',
