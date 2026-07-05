@@ -66,8 +66,121 @@ export type PamAlbumVisualPreset = 'album-card' | 'lyric-video' | 'visualizer' |
 export type PamAlbumCaptionStrategy = 'auto' | 'lyrics' | 'titles-only' | 'none'
 export type PamAlbumExportTarget = 'youtube-16x9' | 'shorts-9x16' | 'square-1x1'
 export type PamAlbumPrepAction = 'enhance' | 'denoise' | 'stabilize' | 'optical-flow'
+export type PamAlbumFormulaId =
+  | 'album-art-motion'
+  | 'studio-performance'
+  | 'cinematic-rnb'
+  | 'rap-street'
+  | 'anime-mv'
+  | 'dreamy-fantasy'
+  | 'lyric-visualizer'
+  | 'shorts-hook-cutdown'
+
+export interface MusicVideoFormula {
+  id: PamAlbumFormulaId
+  name: string
+  summary: string
+  bestFor: string
+  visualPreset: PamAlbumVisualPreset
+  captionStrategy: PamAlbumCaptionStrategy
+  exportTargets: PamAlbumExportTarget[]
+  prepActions: PamAlbumPrepAction[]
+  direction: string[]
+}
+
+export const MUSIC_VIDEO_FORMULAS: readonly MusicVideoFormula[] = [
+  {
+    id: 'album-art-motion',
+    name: 'Album Art Motion',
+    summary: 'A clean release-video base: cover/title cards, lyrics, chapters and a steady sound bar.',
+    bestFor: 'Full albums, low-footage releases, quick YouTube premieres',
+    visualPreset: 'album-card',
+    captionStrategy: 'auto',
+    exportTargets: ['youtube-16x9'],
+    prepActions: ['enhance'],
+    direction: ['Keep the cover readable', 'Use chapters as the navigation spine', 'Let lyrics carry the story'],
+  },
+  {
+    id: 'studio-performance',
+    name: 'Studio Performance',
+    summary: 'One cohesive room, restrained motion, soft edits and performer-first visuals.',
+    bestFor: 'Soul, acoustic, worship, singer-songwriter, live-session feeling',
+    visualPreset: 'cinematic',
+    captionStrategy: 'titles-only',
+    exportTargets: ['youtube-16x9', 'shorts-9x16'],
+    prepActions: ['enhance', 'denoise', 'stabilize'],
+    direction: ['Stay in one believable space', 'Favor slow push-ins and wide shots', 'Keep lighting soft and consistent'],
+  },
+  {
+    id: 'cinematic-rnb',
+    name: 'Cinematic R&B',
+    summary: 'Warm, minimal, premium visuals with breathing room around the vocal.',
+    bestFor: 'R&B, pop ballads, soul, romantic or reflective tracks',
+    visualPreset: 'cinematic',
+    captionStrategy: 'lyrics',
+    exportTargets: ['youtube-16x9', 'shorts-9x16'],
+    prepActions: ['enhance', 'denoise', 'stabilize'],
+    direction: ['Use a low-saturation warm palette', 'Avoid frantic cuts', 'Let camera movement breathe with the song'],
+  },
+  {
+    id: 'rap-street',
+    name: 'Rap / Street Visual',
+    summary: 'Harder contrast, stronger motion intent and hook-friendly social exports.',
+    bestFor: 'Rap, trap, drill, energetic singles and visualizers',
+    visualPreset: 'visualizer',
+    captionStrategy: 'auto',
+    exportTargets: ['youtube-16x9', 'shorts-9x16', 'square-1x1'],
+    prepActions: ['enhance', 'denoise', 'stabilize', 'optical-flow'],
+    direction: ['Cut harder around drums and hook changes', 'Keep wardrobe/location rules consistent', 'Save vertical cutdowns early'],
+  },
+  {
+    id: 'anime-mv',
+    name: 'Anime MV',
+    summary: 'Character-reference driven visuals with strong style consistency and lyric emphasis.',
+    bestFor: 'Virtual artists, anime-pop, J-pop inspired releases, character-led stories',
+    visualPreset: 'lyric-video',
+    captionStrategy: 'lyrics',
+    exportTargets: ['youtube-16x9', 'shorts-9x16'],
+    prepActions: ['enhance', 'optical-flow'],
+    direction: ['Lock character traits before generating scenes', 'Repeat palette and outfit rules', 'Use lyrics as emotional beats'],
+  },
+  {
+    id: 'dreamy-fantasy',
+    name: 'Dreamy Fantasy',
+    summary: 'Soft surreal scenes, slower pacing and atmospheric lyric-forward visuals.',
+    bestFor: 'Ambient, worship, fantasy pop, cinematic instrumentals',
+    visualPreset: 'cinematic',
+    captionStrategy: 'lyrics',
+    exportTargets: ['youtube-16x9'],
+    prepActions: ['enhance', 'denoise'],
+    direction: ['Keep environments related, not random', 'Use gentle transitions', 'Let the chorus be the visual lift'],
+  },
+  {
+    id: 'lyric-visualizer',
+    name: 'Lyric Visualizer',
+    summary: 'Readable lyrics, strong sound bar and minimal footage dependence.',
+    bestFor: 'Singles, demos, lyric-first releases, fast publishing',
+    visualPreset: 'lyric-video',
+    captionStrategy: 'lyrics',
+    exportTargets: ['youtube-16x9', 'shorts-9x16'],
+    prepActions: ['enhance'],
+    direction: ['Prioritize lyric legibility', 'Keep motion subtle behind text', 'Export vertical hooks from chorus lines'],
+  },
+  {
+    id: 'shorts-hook-cutdown',
+    name: 'Shorts Hook Cutdown',
+    summary: 'Social-first export setup for chorus, hook and teaser cuts.',
+    bestFor: 'TikTok, Reels, Shorts, launch teasers and repeated promo posts',
+    visualPreset: 'visualizer',
+    captionStrategy: 'auto',
+    exportTargets: ['shorts-9x16', 'square-1x1'],
+    prepActions: ['enhance', 'stabilize', 'optical-flow'],
+    direction: ['Find the hook first', 'Keep text large and safe', 'Treat the first three seconds like the whole fight'],
+  },
+]
 
 export interface PamAlbumBuildOptions {
+  formulaId?: PamAlbumFormulaId
   visualPreset?: PamAlbumVisualPreset
   captionStrategy?: PamAlbumCaptionStrategy
   exportTargets?: PamAlbumExportTarget[]
@@ -112,6 +225,21 @@ export interface PamAlbumPreflight {
     missingAudio: number
     missingVideo: number
     missingLyrics: number
+  }
+}
+
+export function getMusicVideoFormula(id: PamAlbumFormulaId | undefined): MusicVideoFormula {
+  return MUSIC_VIDEO_FORMULAS.find((formula) => formula.id === id) ?? MUSIC_VIDEO_FORMULAS[0]
+}
+
+export function optionsFromMusicVideoFormula(id: PamAlbumFormulaId): Required<Pick<PamAlbumBuildOptions, 'formulaId' | 'visualPreset' | 'captionStrategy' | 'exportTargets' | 'prepActions'>> {
+  const formula = getMusicVideoFormula(id)
+  return {
+    formulaId: formula.id,
+    visualPreset: formula.visualPreset,
+    captionStrategy: formula.captionStrategy,
+    exportTargets: [...formula.exportTargets],
+    prepActions: [...formula.prepActions],
   }
 }
 
@@ -545,6 +673,7 @@ export async function buildPamAlbumProject(input: FileList | File[], options: Pa
   const captionStrategy = options.captionStrategy ?? 'auto'
   const exportTargets = options.exportTargets?.length ? options.exportTargets : ['youtube-16x9']
   const prepActions = options.prepActions ?? []
+  const formula = getMusicVideoFormula(options.formulaId)
 
   const now = Date.now()
   const projectId = uid()
@@ -727,13 +856,17 @@ export async function buildPamAlbumProject(input: FileList | File[], options: Pa
       artist: bundle.artist,
       campaign: {
         teaserIdeas: [
+          `Formula: ${formula.name}`,
+          `Best for: ${formula.bestFor}`,
           `Visual preset: ${visualPreset}`,
           `Caption strategy: ${captionStrategy}`,
           `Export targets: ${exportTargets.join(', ')}`,
           prepActions.length ? `Prep queue: ${prepActions.join(', ')}` : 'Prep queue: none selected',
+          ...formula.direction.map((note) => `Direction: ${note}`),
         ],
         rolloutNotes: [
           'Imported from a Pam YouTube Album Release packet (iriePromo v2).',
+          `Music video formula: ${formula.name}.`,
           'Review missing media placeholders before export.',
           prepActions.length
             ? `Enhance/prep intents were captured for future processing: ${prepActions.join(', ')}.`

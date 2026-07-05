@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { analyzePamAlbumImport, resolveRelativePath } from './pam-import'
+import {
+  analyzePamAlbumImport,
+  getMusicVideoFormula,
+  MUSIC_VIDEO_FORMULAS,
+  optionsFromMusicVideoFormula,
+  resolveRelativePath,
+} from './pam-import'
 
 function folderFile(path: string, content: string, type = 'text/plain'): File {
   const file = new File([content], path.split('/').pop() || 'file', { type })
@@ -49,5 +55,22 @@ describe('analyzePamAlbumImport', () => {
     expect(result.totals.audioFound).toBe(1)
     expect(result.totals.captions).toBe(2)
     expect(result.tracks[0].missing).toEqual(['video'])
+  })
+})
+
+describe('music video formulas', () => {
+  it('provides reusable formula defaults for Pam album assembly', () => {
+    expect(MUSIC_VIDEO_FORMULAS.length).toBeGreaterThanOrEqual(8)
+    const formula = getMusicVideoFormula('cinematic-rnb')
+    const options = optionsFromMusicVideoFormula('cinematic-rnb')
+
+    expect(formula.name).toBe('Cinematic R&B')
+    expect(options).toMatchObject({
+      formulaId: 'cinematic-rnb',
+      visualPreset: 'cinematic',
+      captionStrategy: 'lyrics',
+    })
+    expect(options.exportTargets).toContain('youtube-16x9')
+    expect(options.prepActions).toContain('stabilize')
   })
 })

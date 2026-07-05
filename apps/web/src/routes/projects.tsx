@@ -43,9 +43,13 @@ import {
   analyzePamAlbumImport,
   buildPamAlbumProject,
   buildPromoProject,
+  getMusicVideoFormula,
+  MUSIC_VIDEO_FORMULAS,
+  optionsFromMusicVideoFormula,
   type PamAlbumBuildOptions,
   type PamAlbumCaptionStrategy,
   type PamAlbumExportTarget,
+  type PamAlbumFormulaId,
   type PamAlbumPreflight,
   type PamAlbumPrepAction,
   type PamAlbumVisualPreset,
@@ -61,15 +65,10 @@ const PRESETS: Record<string, { width: number; height: number; label: string }> 
   square: { width: 1080, height: 1080, label: 'Square · 1:1' },
 }
 
-type AlbumReviewOptions = Required<Pick<PamAlbumBuildOptions, 'visualPreset' | 'captionStrategy' | 'exportTargets' | 'prepActions'>>
+type AlbumReviewOptions = Required<Pick<PamAlbumBuildOptions, 'formulaId' | 'visualPreset' | 'captionStrategy' | 'exportTargets' | 'prepActions'>>
 type AlbumAssetOverrides = NonNullable<PamAlbumBuildOptions['assetOverrides']>
 
-const ALBUM_REVIEW_DEFAULTS: AlbumReviewOptions = {
-  visualPreset: 'album-card',
-  captionStrategy: 'auto',
-  exportTargets: ['youtube-16x9'],
-  prepActions: [],
-}
+const ALBUM_REVIEW_DEFAULTS: AlbumReviewOptions = optionsFromMusicVideoFormula('album-art-motion')
 
 const EXPORT_TARGETS: { value: PamAlbumExportTarget; label: string }[] = [
   { value: 'youtube-16x9', label: 'YouTube 16:9' },
@@ -525,6 +524,7 @@ function PamAlbumReviewDialog({
   const missingCount = review
     ? review.totals.missingAudio + review.totals.missingVideo + review.totals.missingLyrics
     : 0
+  const selectedFormula = getMusicVideoFormula(options.formulaId)
 
   return (
     <Dialog open={!!review} onOpenChange={onOpenChange}>
@@ -594,6 +594,39 @@ function PamAlbumReviewDialog({
               </section>
 
               <section className="space-y-4">
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                  <p className="mb-2 flex items-center gap-2 font-medium">
+                    <WandSparkles className="size-4 text-primary" /> Music video formula
+                  </p>
+                  <Select
+                    value={options.formulaId}
+                    onValueChange={(v) => {
+                      const nextFormula = optionsFromMusicVideoFormula((v ?? 'album-art-motion') as PamAlbumFormulaId)
+                      onOptionsChange(nextFormula)
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue>{(v: string | null) => getMusicVideoFormula(v as PamAlbumFormulaId | undefined).name}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MUSIC_VIDEO_FORMULAS.map((formula) => (
+                        <SelectItem key={formula.id} value={formula.id}>
+                          {formula.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{selectedFormula.summary}</p>
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-primary/80">{selectedFormula.bestFor}</p>
+                  <div className="mt-3 grid gap-1.5">
+                    {selectedFormula.direction.map((note) => (
+                      <span key={note} className="rounded bg-background/50 px-2 py-1 text-xs text-muted-foreground">
+                        {note}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="rounded-lg border border-border bg-card/40 p-3">
                   <p className="mb-2 flex items-center gap-2 font-medium"><SlidersHorizontal className="size-4 text-primary" /> Assembly</p>
                   <div className="space-y-3">
